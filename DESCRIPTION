@@ -1,0 +1,22 @@
+Package: bcr
+Title: bcbio Run Comparison Helpers
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Peter",
+           family = "Diakumis",
+           role = c("aut", "cre"),
+           email = "peterdiakumis@gmail.com")
+Description: Helps with bcbio run comparison
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    dplyr,
+    ggplot2,
+    purrr,
+    tibble,
+    tidyr,
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 6.1.1
+Suggests: 
+    testthat
