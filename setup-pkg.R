@@ -43,7 +43,7 @@ use_test("my-test1")
 # Writes 'R/utils-pipe.R'
 use_pipe()
 
-# use git if not already initiated
+# set up git if not already initialised repo
 use_git()
 
 ### Tips
@@ -51,3 +51,4 @@ use_git()
 # load pkg: Cmd + Shift + L
 # build pkg: Cmd + Shift + B
 # check pkg: Cmd + Shift + E
+# doc pkg: Cmd + Shift + D

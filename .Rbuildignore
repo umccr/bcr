@@ -1,4 +1,5 @@
 ^setup-pkg\.R$
+^sandbox\.R$
 ^README\.Rmd$
 ^LICENSE\.md$
 ^bcr\.Rproj$
