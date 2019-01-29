@@ -45,3 +45,9 @@ use_pipe()
 
 # use git if not already initiated
 use_git()
+
+### Tips
+
+# load pkg: Cmd + Shift + L
+# build pkg: Cmd + Shift + B
+# check pkg: Cmd + Shift + E
