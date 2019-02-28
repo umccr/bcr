@@ -1,7 +1,7 @@
 Package: woofr
 Title: Helper R Functions for woof
 Version: 0.0.0.1
-Description: Helper R Functions for woof
+Description: Helper R Functions for [woof](https://github.com/pdiakumis/woofr).
 Authors@R: 
     person(given = "Peter",
            family = "Diakumis",
@@ -21,6 +21,7 @@ Imports:
     ggplot2,
     purrr,
     readr,
+    rlang,
     tibble,
     tidyr,
 Roxygen: list(markdown = TRUE)

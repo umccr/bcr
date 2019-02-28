@@ -2,5 +2,7 @@
 #'
 #' Helper functions for woof.
 #'
-#' @importFrom dplyr %>%
-"_PACKAGE"
+#'
+#' @docType package
+#' @name woofr-package
+NULL
