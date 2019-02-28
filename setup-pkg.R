@@ -9,7 +9,7 @@ library(usethis)
 # - man/
 # - NAMESPACE
 # - R/
-create_package(path = "/Users/pdiakumis/Desktop/projects/umccr/bcr")
+create_package(path = "/Users/pdiakumis/Desktop/projects/pdiakumis/woofr")
 
 # - Sets License field in DESCRIPTION
 # - Creates LICENSE and LICENSE.md files

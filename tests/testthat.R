@@ -1,4 +1,4 @@
 library(testthat)
-library(bcr)
+library(woofr)
 
-test_check("bcr")
+test_check("woofr")

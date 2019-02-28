@@ -1,26 +1,26 @@
-Package: bcr
-Title: bcbio Run Comparison Helpers
-Version: 0.0.0.9000
-Description: Helps with bcbio run comparisons.
+Package: woofr
+Title: Helper R Functions for woof
+Version: 0.0.0.1
+Description: Helper R Functions for woof
 Authors@R: 
     person(given = "Peter",
            family = "Diakumis",
            role = c("aut", "cre"),
            email = "peterdiakumis@gmail.com",
            comment = c(ORCID = "0000-0002-7502-7545"))
-URL: https://github.com/umccr/bcr
-BugReports: https://github.com/umccr/bcr/issues
+URL: https://github.com/pdiakumis/woofr
+BugReports: https://github.com/pdiakumis/woofr/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 ByteCompile: true
 Depends:
     R (>= 2.10)
-Imports: 
-    assertthat,
+Imports:
     dplyr,
     ggplot2,
     purrr,
+    readr,
     tibble,
     tidyr,
 Roxygen: list(markdown = TRUE)

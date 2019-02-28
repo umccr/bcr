@@ -1,4 +1,3 @@
-# bcr 0.0.0.1
+# woof 0.0.0.1
 
-This package will hopefully help with comparing 
-[bcbio](https://github.com/bcbio/bcbio-nextgen) runs.
+Helper R package for [woof](https://github.com/pdiakumis/woof)
