@@ -8,13 +8,13 @@
 #'   - fpath: path to file
 #'   - ftype: file type. Can be one of:
 #'     1. ensembl-batch
-#      2. mutect2-batch
-#      3. strelka2-batch
-#      4. vardict-batch
-#      5. ensemble-germ
-#      6. gatk-germ
-#      7. strelka2-germ
-#      8. vardict-germ
+#'     2. mutect2-batch
+#'     3. strelka2-batch
+#'     4. vardict-batch
+#'     5. ensemble-germ
+#'     6. gatk-germ
+#'     7. strelka2-germ
+#'     8. vardict-germ
 #'
 #' @examples
 #' \dontrun{

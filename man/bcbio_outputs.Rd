@@ -16,6 +16,13 @@ A tibble with the following columns:
 \item ftype: file type. Can be one of:
 \enumerate{
 \item ensembl-batch
+\item mutect2-batch
+\item strelka2-batch
+\item vardict-batch
+\item ensemble-germ
+\item gatk-germ
+\item strelka2-germ
+\item vardict-germ
 }
 }
 }
