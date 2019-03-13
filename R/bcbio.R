@@ -23,7 +23,9 @@
 #' }
 #' @export
 bcbio_outputs <- function(final) {
+  stopifnot(dir.exists(final))
   vcfs <- list.files(final, pattern = "\\.vcf.gz$", recursive = TRUE, full.names = TRUE)
+  stopifnot(length(vcfs) > 0)
 
   tibble::tibble(fpath = vcfs) %>%
     dplyr::mutate(bname = basename(.data$fpath)) %>%
@@ -41,4 +43,19 @@ bcbio_outputs <- function(final) {
       grepl("manta", .data$bname) ~ "Manta",
       TRUE ~ "OTHER")) %>%
     dplyr::select(.data$ftype, .data$fpath)
+}
+
+merge_bcbio_outputs <- function(f1, f2) {
+
+  final1 <-
+    bcbio_outputs(f1) %>%
+    dplyr::filter(!.data$ftype %in% c("Manta", "OTHER"))
+  final2 <-
+    bcbio_outputs(f2) %>%
+    dplyr::filter(!.data$ftype %in% c("Manta", "OTHER"))
+
+  stopifnot(all(final1$ftype == final2$ftype))
+
+  dplyr::left_join(final1, final2, by = "ftype") %>%
+    utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }

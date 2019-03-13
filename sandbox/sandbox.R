@@ -15,4 +15,4 @@ final2 <- final2 %>%
 stopifnot(all(final1$ftype == final2$ftype))
 
 all <- left_join(final1, final2, by = "ftype")
-stopifnot()
+readr::write_tsv(all, path = "bcbio_vcfs.tsv")
