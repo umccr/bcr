@@ -2,6 +2,7 @@
 
 export("%>%")
 export(bcbio_outputs)
+export(merge_bcbio_outputs)
 importFrom(dplyr,"%>%")
 importFrom(rlang,.data)
 importFrom(rlang,enquo)

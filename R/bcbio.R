@@ -45,6 +45,24 @@ bcbio_outputs <- function(final) {
     dplyr::select(.data$ftype, .data$fpath)
 }
 
+#' Gather bcbio filepaths from two final directories into a single tibble
+#'
+#' Generates a tibble containing absolute paths to files from two bcbio final directories.
+#'
+#' @param f1 Path to first `final` bcbio directory.
+#' @param f2 Path to second `final` bcbio directory.
+#' @return A tibble with the following columns:
+#'   - ftype: file type.
+#'   - f1: final1 file path
+#'   - f2: final2 file path
+#'
+#' @examples
+#' \dontrun{
+#' final1 <- "path/to/bcbio/final1"
+#' final2 <- "path/to/bcbio/final2"
+#' merge_bcbio_outputs(final1, final2)
+#' }
+#' @export
 merge_bcbio_outputs <- function(f1, f2) {
 
   final1 <-
