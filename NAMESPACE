@@ -2,7 +2,10 @@
 
 export("%>%")
 export(bcbio_outputs)
+export(guess_file_type)
+export(lf)
 export(merge_bcbio_outputs)
+export(tree)
 importFrom(dplyr,"%>%")
 importFrom(rlang,.data)
 importFrom(rlang,enquo)
