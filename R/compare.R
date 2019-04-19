@@ -42,6 +42,7 @@ bcbio_outputs <- function(final) {
       grepl("germline-gatk-haplotype", .data$bname) ~ "gatk-germ",
       grepl("manta", .data$bname) ~ "Manta",
       TRUE ~ "OTHER")) %>%
+    dplyr::mutate(fpath = normalizePath(.data$fpath)) %>%
     dplyr::select(.data$ftype, .data$fpath)
 }
 
