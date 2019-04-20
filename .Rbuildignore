@@ -1,7 +1,8 @@
-^sandbox$
-^setup-pkg\.R$
-^sandbox\.R$
-^README\.Rmd$
+^deploy$
 ^LICENSE\.md$
-^woofr\.Rproj$
+^nogit$
+^README\.Rmd$
 ^\.Rproj\.user$
+^setup-pkg\.R$
+^\.travis\.yml$
+^woofr\.Rproj$
