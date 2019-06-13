@@ -1,101 +1,87 @@
-require(methods)
+# Sandbox for trying out things
+require(tidyverse)
+require(yaml)
 
-x <- "data/2019-02-01T0241_Cromwell_WGS_CUP-Pairs8-merged.yaml"
+# Given a bcbio config directory, read in <datetimestamp_project_batch-merged.yaml>.
+# - 'details' contains two samples
+# - each sample contains:
+#   - algorithm (aligner, svcaller, variantcaller, fusion_caller)
+#   - analysis (variant2, RNA-seq)
+#   - description (sample name)
+#   - genome_build (GRCh37, hg38)
+#   - metadata (batch, phenotype, run)
+# - 'upload': ../path/to/final
 
-setClass("BaseSample",
-         slots = c(
-           name = "character",
-           phenotype = "character",
-           gender = "character"),
-         prototype = list(
-           name = NA_character_,
-           phenotype = NA_character_,
-           gender = NA_character_
-         ))
 
-BaseSample <- function(name, phenotype = NA_character_, gender = NA_character_) {
-  new("BaseSample", name = name, phenotype = phenotype, gender = gender)
-}
+x <- "nogit/data/2019-02-01T0241_Cromwell_WGS_CUP-Pairs8-merged.yaml"
+# x <- "nogit/data/2019-05-31T1359_kym_WTS-merged.yaml"
+stopifnot(file.exists(x))
 
-setValidity(Class = "BaseSample", function(object) {
-  if (!(object@phenotype %in% c(NA_character_, "tumor", "normal") && length(object@phenotype) == 1)) {
-    "@phenotype should be 'tumor', 'normal', or left empty."
-  } else if (!(object@gender %in% c(NA_character_, "male", "femal", "unknown") && length(object@gender) == 1)) {
-    "@gender should be 'male', 'female', 'unknown', or left empty."
-  } else {
-    TRUE
+read_bcbio_config <- function(x) {
+
+
+  get_varcallers <- function(samp) {
+    snv <- samp[["algorithm"]][["variantcaller"]]
+    stopifnot(names(snv) %in% c("germline", "somatic"),
+              length(snv) == 2,
+              all(sapply(snv, length) == 3))
+
+    snv_and_sv <- tibble::as_tibble(snv) %>%
+      tidyr::gather(key = "caller_type") %>%
+      dplyr::mutate(caller_type = sub("germline", "germ-snv", caller_type),
+                    caller_type = sub("somatic", "soma-snv", caller_type)) %>%
+      dplyr::bind_rows(
+        tibble::tribble(
+          ~caller_type, ~value,
+          "soma-sv", samp[["algorithm"]][["svcaller"]]))
+
+    snv_and_sv
   }
-})
 
-setClass("BcbioProject",
-         slots = c(
-           final_dir = "character",
-           config_dir = "character",
-           log_dir = "character",
-           bcbio_yaml_fpath = "character",
-           date_dir = "character"
-         ),
-         prototype = list(
-           final_dir = NA_character_,
-           config_dir = NA_character_,
-           log_dir = NA_character_,
-           bcbio_yaml_fpath = NA_character_,
-           date_dir = NA_character_
-         ))
+  bcbio_sample <- function(s) {
+    # given a subelement from 'details', extract stuff
 
-setClass("BcbioBatch",
-         slots = c(
+    # s <- samples[[1]]
+    algo <- s[["algorithm"]]
+    analysis <- s[["analysis"]]
+    nm <- s[["description"]]
+    meta <- s[["metadata"]]
+    varcallers <- NULL
+    if (analysis == "variant2") {
+      varcallers <- get_varcallers(s)
+    }
+    # if RNA: fusion_caller
+    # if DNA: variantcaller, svcaller
+    structure(
+      list(
+        sample_name = nm,
+        batch = meta[["batch"]],
+        phenotype = meta[["phenotype"]],
+        analysis = analysis,
+        aligner = algo[["aligner"]],
+        varcallers = varcallers,
+        fusioncaller = algo[["fusion_caller"]]),
+      class = "bcbio_sample"
+    )
+  }
 
-         ),
-         prototype = c(
+  bcbio_batch <- function(sl) {
+    # given a sample list, output a list of batches with
+    # tumor/normal pairs. e.g., for a file with
+    # 10 T/N pairs, output a list of 10 batches
 
-         ))
+    # - gather elements with the same batch name
 
-setClass("BcbioSample",
-         contains = "BaseSample",
-         slots = c(
-           bcbio_project = "BcbioProject",
-           bam = "character",
-           is_wgs = "logical",
-           is_wts = "logical",
-           genome = "character"),
-         prototype = list(
-           bcbio_project = new("BcbioProject"),
-           bam = NA_character_,
-           is_wgs = NA,
-           is_wts = NA,
-           genome = NA_character_))
 
-# setter, getter
-setGeneric("name", function(x) standardGeneric("name"))
-setGeneric("name<-", function(x, value) standardGeneric("name<-"))
+  }
 
-# methods
-setMethod("name", "BaseSample", function(x) x@name)
-setMethod("name<-", "BaseSample", function(x, value) {
-  x@name <- value
-  x
-})
+  conf <- yaml::read_yaml(x)
 
-john <- new("BaseSample", name = "John")
-is(john, "BaseSample")
-john@name
-john@phenotype
-slot(john, "phenotype")
+  res <- list()
+  samples <- conf$details
+  res$n_samples <- length(samples)
 
-name(john)
-name(john) <- "Jane"
+  final_dir <- normalizePath(conf$upload$dir, mustWork = F)
+  lapply(samples, bcbio_sample)
 
-# read_bcbio_config <- function(x) {
-#
-#   algo <- function(key) {
-#     sapply(conf$details, function(el) el$algorithm[[key]])
-#   }
-#   conf <- yaml::read_yaml(x)
-#   res <- list()
-#   res$final_dir <- conf$upload
-#   res$aligners <- algo("aligner")
-#   res$adapters <- algo("adapter")
-#   res$svcallers <- algo("svcaller")
-#   res$varcallers <- algo("variantcaller")
-# }
+}
