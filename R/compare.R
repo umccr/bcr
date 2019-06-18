@@ -144,3 +144,68 @@ merge_umccrise_outputs <- function(d1, d2) {
   dplyr::left_join(um1, um2, by = "ftype") %>%
     utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }
+
+
+#' Read YAML configs from two bcbio runs
+#'
+#' Generates a list containing absolute paths to variant files for
+#' two bcbio runs.
+#'
+#'
+#' @param conf1 Path to `final/config/<timestamp>_project.yaml` for run1.
+#' @param conf2 Path to `final/config/<timestamp>_project.yaml` for run2.
+#' @return A list with the following elements:
+#'   - 'batch_name', 'tumor_name', 'normal_name': batch/tumor/normal names.
+#'   - 'variant_files': file type. Can be one of:
+#'     1. ensemble_som
+#'     2. mutect2_som
+#'     3. strelka2_som
+#'     4. vardict_som
+#'     5. ensemble_ger
+#'     6. gatk-haplotype_ger
+#'     7. strelka2_ger
+#'     8. vardict_ger
+#'     9. manta_som-sv
+#'
+#' @examples
+#' \dontrun{
+#' conf1 <- "path/to/bcbio_run1/final/config/<timestamp>_project.yaml"
+#' conf2 <- "path/to/bcbio_run2/final/config/<timestamp>_project.yaml"
+#' read_bcbio_configs(conf1, conf2)
+#' }
+#' @export
+read_bcbio_configs <- function(conf1, conf2) {
+  b1 <- read_bcbio_config(conf1)
+  b2 <- read_bcbio_config(conf2)
+
+  ### variant callers
+  vc1 <- b1$varcallers
+  vc2 <- b2$varcallers
+  stopifnot(all(vc1$caller_name2 == vc2$caller_name2))
+
+  caller_nms <- unique(vc1$caller_name2)
+  caller_list <- purrr::map(caller_nms, function(caller) {
+    list(run1 = vc1$fpath[vc1$caller_name2 == caller],
+         run2 = vc2$fpath[vc2$caller_name2 == caller])}) %>%
+    purrr::set_names(caller_nms)
+
+  ### check stuff: aligner + genome_build can differ
+  stopifnot(b1$batch_name == b2$batch_name,
+            b1$tumor_name == b2$tumor_name,
+            b1$normal_name == b2$normal_name,
+            b1$analysis_type == b2$analysis_type)
+
+  out <- list(
+    batch_name = b1$batch_name,
+    tumor_name = b1$tumor_name,
+    normal_name = b1$normal_name,
+    aligner = list(run1 = b1$aligner,
+                   run2 = b2$aligner),
+    genome_build = list(run1 = b1$genome_build,
+                        run2 = b2$genome_build),
+    analysis_type = b1$analysis_type,
+    variant_files = caller_list)
+
+  out
+
+}

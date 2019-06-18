@@ -6,16 +6,20 @@ bcbio_sample <- function(s) {
     snv <- samp[["algorithm"]][["variantcaller"]]
     stopifnot(names(snv) %in% c("germline", "somatic"),
               length(snv) == 2,
-              all(sapply(snv, length) == 3))
+              length(snv[["germline"]]) == length(snv[["somatic"]]))
 
     snv_and_sv <- tibble::as_tibble(snv) %>%
-      tidyr::gather(key = "caller_type") %>%
-      dplyr::mutate(caller_type = sub("germline", "germ-snv", .data$caller_type),
-                    caller_type = sub("somatic", "soma-snv", .data$caller_type)) %>%
+      dplyr::bind_rows(tibble::tribble(~germline, ~somatic,
+                                       "ensemble", "ensemble")) %>%
+      tidyr::gather(key = "caller_type", "caller_name") %>%
+      dplyr::mutate(caller_type = sub("germline", "ger", .data$caller_type),
+                    caller_type = sub("somatic", "som", .data$caller_type)) %>%
       dplyr::bind_rows(
         tibble::tribble(
-          ~caller_type, ~value,
-          "soma-sv", samp[["algorithm"]][["svcaller"]]))
+          ~caller_type, ~caller_name,
+          "som-sv", samp[["algorithm"]][["svcaller"]])) %>%
+      dplyr::mutate(caller_name2 = paste0(.data$caller_name, "_", .data$caller_type)) %>%
+      dplyr::arrange(.data$caller_name)
 
     snv_and_sv
   }
@@ -80,12 +84,13 @@ bcbio_vcfs <- function(batch) {
   # if germ-snv: <final>/<date_dir>/<normal>-germline-<caller>-annotated.vcf.gz
   # if soma-snv: <final>/<date_dir>/<batch>-<caller>-annotated.vcf.gz
   # if soma-sv:  <final>/<tumor>/<batch>-sv-prioritize-<caller>.vcf.gz
+  # Also add ensemble calls
   vc %>%
     dplyr::mutate(
       fpath = dplyr::case_when(
-        caller_type == "germ-snv" ~ file.path(dd, paste0(nn, "-germline-", .data$value, "-annotated.vcf.gz")),
-        caller_type == "soma-snv" ~ file.path(dd, paste0(bn, "-", .data$value, "-annotated.vcf.gz")),
-        caller_type == "soma-sv" ~ file.path(fd, tn, paste0(bn, "-sv-prioritize-", .data$value, ".vcf.gz")),
+        caller_type == "ger" ~ file.path(dd, paste0(nn, "-germline-", .data$caller_name, "-annotated.vcf.gz")),
+        caller_type == "som" ~ file.path(dd, paste0(bn, "-", .data$caller_name, "-annotated.vcf.gz")),
+        caller_type == "som-sv" ~ file.path(fd, tn, paste0(bn, "-sv-prioritize-", .data$caller_name, ".vcf.gz")),
         TRUE ~ "XXX"))
 }
 
@@ -124,4 +129,3 @@ read_bcbio_config <- function(x) {
   batch$varcallers <- bcbio_vcfs(batch)
   batch
 }
-
