@@ -1,20 +1,3 @@
-# Sandbox for trying out things
-require(tidyverse)
-require(yaml)
-
-# Given a bcbio config directory, read in <datetimestamp_project_batch-merged.yaml>.
-# - 'details' contains X samples
-# - each sample contains:
-#   - algorithm (aligner, svcaller, variantcaller, fusion_caller)
-#   - analysis (variant2, RNA-seq)
-#   - description (sample name)
-#   - genome_build (GRCh37, hg38)
-#   - metadata (batch, phenotype, run)
-# - 'upload': ../path/to/final
-
-
-x <- "nogit/data/2019-02-01T0241_Cromwell_WGS_CUP-Pairs8-merged.yaml"
-stopifnot(file.exists(x))
 
 bcbio_sample <- function(s) {
   # given a subelement from 'details', extract stuff
@@ -27,8 +10,8 @@ bcbio_sample <- function(s) {
 
     snv_and_sv <- tibble::as_tibble(snv) %>%
       tidyr::gather(key = "caller_type") %>%
-      dplyr::mutate(caller_type = sub("germline", "germ-snv", caller_type),
-                    caller_type = sub("somatic", "soma-snv", caller_type)) %>%
+      dplyr::mutate(caller_type = sub("germline", "germ-snv", .data$caller_type),
+                    caller_type = sub("somatic", "soma-snv", .data$caller_type)) %>%
       dplyr::bind_rows(
         tibble::tribble(
           ~caller_type, ~value,
@@ -54,7 +37,7 @@ bcbio_sample <- function(s) {
             aligner = algo[["aligner"]],
             varcallers = varcallers,
             fusioncaller = algo[["fusion_caller"]])
-  setNames(list(l), nm)
+  stats::setNames(list(l), nm)
 }
 
 bcbio_batch <- function(sl) {
@@ -84,9 +67,9 @@ bcbio_batch <- function(sl) {
   b
 }
 
+# Construct paths to VCFs
 bcbio_vcfs <- function(batch) {
-  # Need batch/tumor/normal names, final path
-  # Construct paths to VCFs
+
   bn <- batch[["batch_name"]]
   nn <- batch[["normal_name"]]
   tn <- batch[["tumor_name"]]
@@ -96,24 +79,45 @@ bcbio_vcfs <- function(batch) {
 
   # if germ-snv: <final>/<date_dir>/<normal>-germline-<caller>-annotated.vcf.gz
   # if soma-snv: <final>/<date_dir>/<batch>-<caller>-annotated.vcf.gz
-  # if soma-sv:  <final>/<tumor>/<batch>-sv-prioritize-manta.vcf.gz
+  # if soma-sv:  <final>/<tumor>/<batch>-sv-prioritize-<caller>.vcf.gz
   vc %>%
     dplyr::mutate(
       fpath = dplyr::case_when(
-        caller_type == "germ-snv" ~ file.path(dd, paste0(nn, "-germline-", value, "-annotated.vcf.gz")),
-        caller_type == "soma-snv" ~ file.path(dd, paste0(bn, "-", value, "-annotated.vcf.gz")),
-        caller_type == "soma-sv" ~ file.path(fd, tn, paste0(bn, "-sv-prioritize-", value, ".vcf.gz")),
+        caller_type == "germ-snv" ~ file.path(dd, paste0(nn, "-germline-", .data$value, "-annotated.vcf.gz")),
+        caller_type == "soma-snv" ~ file.path(dd, paste0(bn, "-", .data$value, "-annotated.vcf.gz")),
+        caller_type == "soma-sv" ~ file.path(fd, tn, paste0(bn, "-sv-prioritize-", .data$value, ".vcf.gz")),
         TRUE ~ "XXX"))
 }
 
+#' Read bcbio Config
+#'
+#' Generates a list of information about the batch within a bcbio
+#' config YAML file.
+#'
+#' @param x Path to bcbio/config/<datestamp>_project.yaml file.
+#' @return A list with the following elements:
+#'   - 'batch_name', 'tumor_name' and 'normal_name': names of batch and its
+#'     tumor/normal samples.
+#'   - 'analysis_type': variant2 or RNA-seq
+#'   - 'genome_build': GRCh37 or hg38
+#'   - 'aligner': bwa, star etc.
+#'
+#' @examples
+#' \dontrun{
+#' x <- "path/to/bcbio/config/<datestamp>_project.yaml"
+#' read_bcbio_config(x)
+#' }
+#' @export
 read_bcbio_config <- function(x) {
 
   conf <- yaml::read_yaml(x)
-  final_dir <- "/Users/pdiakumis/Desktop/projects/umccr/woof/nogit/data/f1/final"
-  # final_dir <- normalizePath(conf[["upload"]][["dir"]], mustWork = F)
+  final_dir <- normalizePath(conf[["upload"]][["dir"]], mustWork = TRUE)
   date_dir <- Sys.glob(file.path(final_dir, paste0("*", conf[["fc_name"]])))
-  samples <- purrr::map(conf[["details"]], function(s) bcbio_sample(s)[[1]]) %>%
-    purrr::set_names(purrr::map_chr(., "sample_name"))
+
+  samples <- purrr::map(conf[["details"]], function(s) bcbio_sample(s)[[1]])
+  nms <- purrr::map_chr(samples, "sample_name")
+  samples <- stats::setNames(samples, nms)
+
   batch <- bcbio_batch(samples)
   batch$final_dir <- final_dir
   batch$date_dir <- date_dir
@@ -121,4 +125,3 @@ read_bcbio_config <- function(x) {
   batch
 }
 
-batch <- read_bcbio_config(x)
