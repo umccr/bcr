@@ -17,7 +17,7 @@ bcbio_sample <- function(s) {
       dplyr::bind_rows(
         tibble::tribble(
           ~caller_type, ~caller_name,
-          "som-sv", samp[["algorithm"]][["svcaller"]])) %>%
+          "som_sv", samp[["algorithm"]][["svcaller"]])) %>%
       dplyr::mutate(caller_name2 = paste0(.data$caller_name, "_", .data$caller_type)) %>%
       dplyr::arrange(.data$caller_name)
 
@@ -90,7 +90,7 @@ bcbio_vcfs <- function(batch) {
       fpath = dplyr::case_when(
         caller_type == "ger" ~ file.path(dd, paste0(nn, "-germline-", .data$caller_name, "-annotated.vcf.gz")),
         caller_type == "som" ~ file.path(dd, paste0(bn, "-", .data$caller_name, "-annotated.vcf.gz")),
-        caller_type == "som-sv" ~ file.path(fd, tn, paste0(bn, "-sv-prioritize-", .data$caller_name, ".vcf.gz")),
+        caller_type == "som_sv" ~ file.path(fd, tn, paste0(bn, "-sv-prioritize-", .data$caller_name, ".vcf.gz")),
         TRUE ~ "XXX"))
 }
 

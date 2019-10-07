@@ -1,18 +1,9 @@
-# Sandbox for trying out things
+# Sandbox for experimentation
 require(tidyverse)
 require(yaml)
 require(woofr)
 
-final1 <- woofr::bcbio_outputs("~/my_apps/sshfs/raijin/native")
-final2 <- woofr::bcbio_outputs("~/my_apps/sshfs/raijin/cwl")
-
-final1 <- final1 %>%
-  filter(!ftype %in% c("Manta", "OTHER"))
-
-final2 <- final2 %>%
-  filter(!ftype %in% c("Manta", "OTHER"))
-
-stopifnot(all(final1$ftype == final2$ftype))
-
-all <- left_join(final1, final2, by = "ftype")
-readr::write_tsv(all, path = "bcbio_vcfs.tsv")
+x <- "nogit/data/2019-02-01T0241_Cromwell_WGS_CUP-Pairs8-merged.yaml"
+b <- read_bcbio_configs(x, x)
+vf <- b$variant_files
+jsonlite::write_json(vf, "nogit/data/variant_files1.json", pretty = T, auto_unbox = T)
