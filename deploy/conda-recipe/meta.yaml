@@ -8,7 +8,8 @@ package:
   version: {{ version|replace("-", "_") }}
 
 source:
-  git_url: https://github.com/umccr/woofr
+
+  git_url: https://github.com/pdiakumis/woofr
   git_tag: 0.1.0
 
 build:
@@ -31,24 +32,24 @@ requirements:
   host:
     - r-base
     - r-dplyr
-    - r-fs
     - r-ggplot2
     - r-purrr
     - r-readr
     - r-rlang
     - r-tibble
     - r-tidyr
+    - r-yaml
 
   run:
     - r-base
     - r-dplyr
-    - r-fs
     - r-ggplot2
     - r-purrr
     - r-readr
     - r-rlang
     - r-tibble
     - r-tidyr
+    - r-yaml
 
 test:
   commands:
