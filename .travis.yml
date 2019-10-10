@@ -8,14 +8,6 @@ os:
   - linux
   - osx
 
-env:
-  - R_VERSION=r-base
-
-matrix:
-  exclude:
-    - os: osx
-      env: R_VERSION=r-base
-
 language: bash
 
 install:
