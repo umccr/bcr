@@ -19,7 +19,7 @@ install:
 
 script:
   - mkdir out
-  - conda build deploy/conda-recipe --output-folder out
+  - conda build --R 3.6 deploy/conda-recipe --output-folder out
 
 after_success:
   - test $TRAVIS_BRANCH = "master" &&
