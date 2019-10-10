@@ -1,5 +1,5 @@
 # Install miniconda
-MINICONDA_URL="http://repo.continuum.io/miniconda"
+MINICONDA_URL="http://repo.anaconda.com/miniconda"
 
 if [[ $TRAVIS_OS_NAME == "linux" ]]; then
     MINICONDA_FILE="Miniconda3-latest-Linux-x86_64.sh"
