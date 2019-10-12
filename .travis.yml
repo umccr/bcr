@@ -2,7 +2,7 @@
 notifications:
   email:
     on_success: never
-    on_failure: never
+    on_failure: always
 
 os:
   - linux
@@ -12,7 +12,7 @@ language: bash
 
 install:
   # Install miniconda
-  - source deploy/travis_install.sh
+  - source deploy/install_miniconda.sh
   # Update conda and install packages
   - conda update --yes conda
   - conda install --yes conda-build jinja2 anaconda-client
@@ -24,10 +24,4 @@ script:
 after_success:
   - test $TRAVIS_BRANCH = "master" &&
     anaconda -t $CONDA_UPLOAD_TOKEN upload --force out/$TRAVIS_OS_NAME-64/*.tar.bz2
-
-# We only want to build with Travis when pushing to master or PR:
-# https://stackoverflow.com/a/31882307/2169986
-branches:
-  only:
-    - master
 
