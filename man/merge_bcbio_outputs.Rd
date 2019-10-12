@@ -4,19 +4,22 @@
 \alias{merge_bcbio_outputs}
 \title{Gather bcbio filepaths from two final directories into a single tibble}
 \usage{
-merge_bcbio_outputs(d1, d2)
+merge_bcbio_outputs(d1, d2, sample)
 }
 \arguments{
 \item{d1}{Path to first \code{final} bcbio directory.}
 
 \item{d2}{Path to second \code{final} bcbio directory.}
+
+\item{sample}{Sample name.}
 }
 \value{
 A tibble with the following columns:
 \itemize{
+\item sample: sample name.
 \item ftype: file type.
-\item d1: final1 file path
-\item d2: final2 file path
+\item d1: final1 file path.
+\item d2: final2 file path.
 }
 }
 \description{

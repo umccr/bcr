@@ -4,16 +4,19 @@
 \alias{merge_umccrise_outputs}
 \title{Gather umccrise filepaths from two different sample directories into a single tibble}
 \usage{
-merge_umccrise_outputs(d1, d2)
+merge_umccrise_outputs(d1, d2, sample)
 }
 \arguments{
 \item{d1}{Path to first umccrise sample directory.}
 
 \item{d2}{Path to second umccrise sample directory.}
+
+\item{sample}{Sample name.}
 }
 \value{
 A tibble with the following columns:
 \itemize{
+\item sample: sample name.
 \item ftype: file type.
 \item d1: sample1 file path
 \item d2: sample2 file path

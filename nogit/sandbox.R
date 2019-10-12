@@ -3,7 +3,9 @@ require(tidyverse)
 require(yaml)
 require(woofr)
 
-x <- "nogit/data/2019-02-01T0241_Cromwell_WGS_CUP-Pairs8-merged.yaml"
-b <- read_bcbio_configs(x, x)
-vf <- b$variant_files
-jsonlite::write_json(vf, "nogit/data/variant_files1.json", pretty = T, auto_unbox = T)
+d1 <- "~/Desktop/projects/umccr/woof_compare/test/data/f1"
+d2 <- "~/Desktop/projects/umccr/woof_compare/test/data/f2"
+sample <- "foo"
+bcbio_outputs(d1)
+bcbio_outputs(d2)
+merge_bcbio_outputs(d1, d2, "foo")

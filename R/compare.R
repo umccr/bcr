@@ -52,8 +52,10 @@ bcbio_outputs <- function(d) {
 #'
 #' @param d1 Path to first `final` bcbio directory.
 #' @param d2 Path to second `final` bcbio directory.
+#' @param sample Sample name.
 #' @return A tibble with the following columns:
-#'   - ftype: file type.
+#'   - sample: sample name
+#'   - ftype: file type
 #'   - d1: final1 file path
 #'   - d2: final2 file path
 #'
@@ -64,7 +66,7 @@ bcbio_outputs <- function(d) {
 #' merge_bcbio_outputs(final1, final2)
 #' }
 #' @export
-merge_bcbio_outputs <- function(d1, d2) {
+merge_bcbio_outputs <- function(d1, d2, sample) {
 
   final1 <-
     bcbio_outputs(d1) %>%
@@ -76,6 +78,8 @@ merge_bcbio_outputs <- function(d1, d2) {
   stopifnot(all(final1$ftype == final2$ftype))
 
   dplyr::left_join(final1, final2, by = "ftype") %>%
+    dplyr::mutate(sample = sample) %>%
+    dplyr::select(.data$sample, .data$ftype, .data$fpath.x, .data$fpath.y) %>%
     utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }
 
@@ -118,7 +122,9 @@ umccrise_outputs <- function(d) {
 #'
 #' @param d1 Path to first umccrise sample directory.
 #' @param d2 Path to second umccrise sample directory.
+#' @param sample Sample name.
 #' @return A tibble with the following columns:
+#'   - sample: sample name.
 #'   - ftype: file type.
 #'   - d1: sample1 file path
 #'   - d2: sample2 file path
@@ -130,7 +136,7 @@ umccrise_outputs <- function(d) {
 #' merge_umccrise_outputs(um1, um2)
 #' }
 #' @export
-merge_umccrise_outputs <- function(d1, d2) {
+merge_umccrise_outputs <- function(d1, d2, sample) {
 
   um1 <-
     umccrise_outputs(d1) %>%
@@ -142,6 +148,8 @@ merge_umccrise_outputs <- function(d1, d2) {
   stopifnot(all(um1$ftype == um2$ftype))
 
   dplyr::left_join(um1, um2, by = "ftype") %>%
+    dplyr::mutate(sample = sample) %>%
+    dplyr::select(.data$sample, .data$ftype, .data$fpath.x, .data$fpath.y) %>%
     utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }
 
