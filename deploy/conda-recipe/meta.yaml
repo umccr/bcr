@@ -31,8 +31,10 @@ requirements:
     - r-base
     - r-dplyr
     - r-ggplot2
+    - r-pebbles
     - r-purrr
     - r-readr
+    - r-rock
     - r-rlang
     - r-tibble
     - r-tidyr
@@ -42,8 +44,10 @@ requirements:
     - r-base
     - r-dplyr
     - r-ggplot2
+    - r-pebbles
     - r-purrr
     - r-readr
+    - r-rock
     - r-rlang
     - r-tibble
     - r-tidyr
