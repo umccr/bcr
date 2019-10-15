@@ -1,6 +1,6 @@
 ---
 author: "University of Melbourne Centre for Cancer Research"
-date: "`r format(Sys.time(), '%a %Y-%b-%dT%H:%M')`"
+date: "`r format(Sys.time(), '%a %Y-%b-%d %H:%M')`"
 output:
   html_document:
     theme: simplex
@@ -21,7 +21,7 @@ description: "Comparison of bcbio and umccrise pipeline runs"
 
 <style type="text/css">
 .main-container {
-  max-width: 1400px;
+  max-width: 2000px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -31,8 +31,31 @@ description: "Comparison of bcbio and umccrise pipeline runs"
 ```{r load-knitr, include=F}
 require(knitr)
 knitr::opts_chunk$set(
-  echo = TRUE
+  echo = FALSE
   )
+```
+
+```{r render_report_interactively, eval=F, echo=F}
+params_tmp <- list(
+  local = list(
+    woof_final = "/Users/pdiakumis/Desktop/projects/umccr/woof_compare/test/woof/final",
+    run1_nm = "run1",
+    run2_nm = "run2"
+  ),
+  raijin = list(
+    woof_final = "",
+    run1_nm = "run1",
+    run2_nm = "run2"
+  )
+)
+params <- params_tmp[["local"]]
+
+render_me <- function() {
+  rmarkdown::render(
+    "woof_compare.Rmd",
+    params = params)
+}
+render_me()
 ```
 
 ```{r load-pkgs, message=F, warning=F}
@@ -40,7 +63,6 @@ require(bedr)
 require(DiagrammeR)
 require(dplyr)
 require(DT)
-require(fs)
 require(glue)
 require(kableExtra)
 require(purrr)
@@ -57,7 +79,7 @@ Results
 
 ```{r funcs-snvs}
 woof_final <- params$woof_final
-stopifnot(fs::dir_exists(woof_final))
+stopifnot(dir.exists(woof_final))
 
 samples <- list.dirs(woof_final, recursive = FALSE, full.names = FALSE)
 # get vcf_types from unique woof/final/<sample>/vcf_eval/<vcf_type>/
@@ -163,6 +185,9 @@ bgsize <- '90% 90%'
 big_mark_cols <- c("run1_count", "run2_count",
                    "SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN",
                    "IND_Truth", "IND_TP", "IND_FP", "IND_FN")
+bar_colour <- "lightblue"
+bar_range <- c(0.97, 1)
+
 d %>%
   dplyr::select(-matches("f[123]$")) %>%
   dplyr::select(id, sample, vcf_type, subset, run1_count, run2_count,
@@ -171,26 +196,29 @@ d %>%
   dplyr::mutate_if(is.numeric, round, 3) %>%
   dplyr::mutate_if(is.character, as.factor) %>%
   DT::datatable(
-    rownames = FALSE, caption = cap, filter = list(position = "top", clear = FALSE, plain = TRUE),
-    extensions = c("Scroller"), options = list(scroller = TRUE, scrollX = TRUE, scrollY = 600)) %>%
+    rownames = FALSE, caption = cap, class = "cell-border stripe hover compact",
+    filter = list(position = "top", clear = FALSE, plain = FALSE),
+    extensions = c("Scroller", "KeyTable"),
+    options = list(scroller = TRUE, scrollY = 600, autoWidth = TRUE, keys = TRUE)
+  ) %>%
   formatStyle(
     'SNP_Recall',
-    background = styleColorBar(d$SNP_Recall, 'lightgreen'),
+    background = styleColorBar(bar_range, color = bar_colour),
     backgroundSize = bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center'
   ) %>%
   formatStyle(
     'IND_Recall',
-    background = styleColorBar(d$IND_Recall, 'lightgreen'),
+    background = styleColorBar(bar_range, color = bar_colour),
     backgroundSize = bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center'
   ) %>%
   formatStyle(
     'SNP_Precision',
-    background = styleColorBar(d$SNP_Precision, 'lightgreen'),
+    background = styleColorBar(bar_range, color = bar_colour),
     backgroundSize = bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center'
   ) %>%
   formatStyle(
     'IND_Precision',
-    background = styleColorBar(d$IND_Precision, 'lightgreen'),
+    background = styleColorBar(bar_range, color = bar_colour),
     backgroundSize = bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center'
   ) %>%
   formatCurrency(big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)

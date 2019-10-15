@@ -16,10 +16,10 @@ merge_bcbio_outputs(d1, d2, sample)
 \value{
 A tibble with the following columns:
 \itemize{
-\item sample: sample name.
-\item ftype: file type.
-\item d1: final1 file path.
-\item d2: final2 file path.
+\item sample: sample name
+\item ftype: file type
+\item d1: final1 file path
+\item d2: final2 file path
 }
 }
 \description{

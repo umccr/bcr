@@ -6,3 +6,4 @@
 ^setup-pkg\.R$
 ^\.travis\.yml$
 ^woofr\.Rproj$
+^bump\.sh$
