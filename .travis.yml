@@ -1,4 +1,5 @@
-# Configure notification
+sudo: required
+
 notifications:
   email:
     on_success: never
@@ -14,6 +15,7 @@ install:
   # Install miniconda
   - source deploy/install_miniconda.sh
   # Update conda and install packages
+  - conda install --yes -c anaconda setuptools # for https://github.com/conda/conda/issues/8149
   - conda update --yes conda
   - conda config --add channels pdiakumis --add channels bioconda --add channels conda-forge
   - conda install --yes conda-build jinja2 anaconda-client conda-verify
