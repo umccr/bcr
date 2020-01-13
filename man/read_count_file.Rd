@@ -16,9 +16,8 @@ A single integer
 Reads SNV count file output by woof
 }
 \examples{
-\dontrun{
 
 x <- system.file("extdata", "count_vars.txt", package = "woofr")
 read_count_file(x)
-}
+
 }

@@ -217,3 +217,56 @@ read_bcbio_configs <- function(conf1, conf2) {
   out
 
 }
+
+#' Read SNV count file output by woof
+#'
+#' Reads SNV count file output by woof
+#'
+#' @param x Path to file with counts
+#' @return A single integer
+#'
+#' @examples
+#'
+#' x <- system.file("extdata", "count_vars.txt", package = "woofr")
+#' read_count_file(x)
+#'
+#' @export
+read_count_file <- function(x) {
+  if (!file.exists(x)) {
+    return(NA_integer_)
+  }
+  res <- readr::read_lines(x) %>% as.integer()
+  stopifnot(res >= 0)
+  res
+}
+
+#' Read eval file output by woof
+#'
+#' Reads eval file output by woof
+#'
+#' @param x Path to file with eval results
+#' @return A tibble with a single row of evaluation metrics
+#'
+#' @examples
+#'
+#' x <- system.file("extdata", "eval_stats.tsv", package = "woofr")
+#' read_eval_file(x)
+#'
+#' @export
+read_eval_file <- function(x) {
+  column_nms <- c("SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN", "SNP_Recall", "SNP_Precision",
+                  "SNP_f1", "SNP_f2", "SNP_f3", "IND_Truth", "IND_TP", "IND_FP",
+                  "IND_FN", "IND_Recall", "IND_Precision", "IND_f1", "IND_f2", "IND_f3")
+  if (!file.exists(x)) {
+    # return tibble of NAs
+    res <- rep(NA, length(column_nms)) %>%
+      purrr::set_names(column_nms) %>%
+      as.list() %>%
+      dplyr::as_tibble()
+
+    return(res)
+  }
+  res <- readr::read_tsv(x, col_types = readr::cols(.default = "d"))
+  stopifnot(names(res) == column_nms)
+  res
+}
