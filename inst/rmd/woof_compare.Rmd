@@ -15,7 +15,7 @@ params:
   woof_final: "/path/to/woof/final"
   run1_nm: "run1"
   run2_nm: "run2"
-title: "`r paste0('Comparison of woof runs in', htmltools::br(), '\'', normalizePath(params$woof_final), '\':', htmltools::br(), params$run1_nm, htmltools::br(), 'vs.', htmltools::br(), params$run2_nm)`"
+title: "`r glue::glue('Comparison of woof runs in {htmltools::br()}\'{normalizePath(params$woof_final)}\':{htmltools::br()}{params$run1_nm}{htmltools::br()}  vs.{htmltools::br()}{params$run2_nm}')`"
 description: "Comparison of bcbio and umccrise pipeline runs"
 ---
 
@@ -28,7 +28,7 @@ description: "Comparison of bcbio and umccrise pipeline runs"
 </style>
 
 
-```{r load-knitr, include=F}
+```{r load_knitr, include=F}
 require(knitr)
 knitr::opts_chunk$set(
   echo = FALSE
@@ -42,7 +42,7 @@ params_tmp <- list(
     run1_nm = "run1",
     run2_nm = "run2"
   ),
-  raijin = list(
+  gadi = list(
     woof_final = "",
     run1_nm = "run1",
     run2_nm = "run2"
@@ -50,26 +50,27 @@ params_tmp <- list(
 )
 params <- params_tmp[["local"]]
 
+rmd <- here::here("inst/rmd/woof_compare.Rmd")
 render_me <- function() {
   rmarkdown::render(
-    "woof_compare.Rmd",
+    rmd,
     params = params)
 }
 render_me()
 ```
 
-```{r load-pkgs, message=F, warning=F}
-require(bedr)
-require(DiagrammeR)
-require(dplyr)
-require(DT)
-require(glue)
-require(kableExtra)
-require(purrr)
-require(readr)
-require(rock)
-require(tidyr)
-require(woofr)
+```{r load_pkgs, message=F, warning=F}
+suppressPackageStartupMessages(library(bedr))
+suppressPackageStartupMessages(library(DiagrammeR))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(DT))
+suppressPackageStartupMessages(library(glue))
+suppressPackageStartupMessages(library(kableExtra))
+suppressPackageStartupMessages(library(purrr))
+suppressPackageStartupMessages(library(readr))
+suppressPackageStartupMessages(library(rock))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(woofr))
 ```
 
 Results
@@ -77,69 +78,41 @@ Results
 
 ### SNVs/Indels
 
-```{r funcs-snvs}
+```{r funcs_snvs}
 woof_final <- params$woof_final
 stopifnot(dir.exists(woof_final))
 
 samples <- list.dirs(woof_final, recursive = FALSE, full.names = FALSE)
 # get vcf_types from unique woof/final/<sample>/vcf_eval/<vcf_type>/
-vcf_types <-
+snv_vcf_types <-
   file.path(woof_final, samples, "vcf_eval") %>%
   list.dirs(recursive = FALSE, full.names = FALSE) %>%
   unique()
-allowed_vcf_types <- c("ensemble-batch", "ensemble-germ", "gatk-germ", "mutect-batch",
-                       "strelka-batch", "strelka-germ", "vardict-batch", "vardict-germ",
-                       "pcgr", "cpsr")
-stopifnot(vcf_types %in% allowed_vcf_types)
+allowed_snv_vcf_types <- c("ensemble-batch", "ensemble-germ", "gatk-germ", "mutect-batch",
+                           "strelka-batch", "strelka-germ", "vardict-batch", "vardict-germ",
+                           "pcgr", "cpsr")
+stopifnot(snv_vcf_types %in% allowed_snv_vcf_types)
 
-read_count_files <- function(sample, vcf_type, pass_or_all) {
+read_count_files <- function(woof_final, sample, vcf_type, pass_or_all) {
 
-  read_count_file <- function(sample, f1_or_f2, vcf_type, pass_or_all) {
-    x <- file.path(woof_final, sample, "vcf_counts", f1_or_f2, vcf_type, pass_or_all, "count_vars.txt")
-    if (!file.exists(x)) {
-      return(NA_integer_)
-    }
-    x %>% readr::read_lines() %>% as.integer()
-  }
+  c1 <- file.path(woof_final, sample, "vcf_counts", "f1", vcf_type, pass_or_all, "count_vars.txt") %>% woofr::read_count_file()
+  c2 <- file.path(woof_final, sample, "vcf_counts", "f2", vcf_type, pass_or_all, "count_vars.txt") %>% woofr::read_count_file()
 
-  c1 <- read_count_file(sample, "f1", vcf_type, pass_or_all)
-  c2 <- read_count_file(sample, "f2", vcf_type, pass_or_all)
   # keeping sample/vcf_type/subset in row
   dplyr::tibble(sample = sample, vcf_type = vcf_type, subset = pass_or_all, run1_count = c1, run2_count = c2)
 }
 
-read_eval_file <- function(sample, vcf_type, pass_or_all) {
-  x <- file.path(woof_final, sample, "vcf_eval", vcf_type, pass_or_all, "eval_stats.tsv")
-  column_nms <- c("SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN", "SNP_Recall", "SNP_Precision",
-                  "SNP_f1", "SNP_f2", "SNP_f3", "IND_Truth", "IND_TP", "IND_FP",
-                  "IND_FN", "IND_Recall", "IND_Precision", "IND_f1", "IND_f2", "IND_f3")
-  if (!file.exists(x)) {
-    # return tibble of NAs
-    d <- rep(NA, length(column_nms)) %>%
-      purrr::set_names(column_nms) %>%
-      as.list() %>%
-      dplyr::as_tibble()
-
-    return(d)
-  }
-  d <- readr::read_tsv(x, col_types = cols(.default = "d"))
-  stopifnot(names(d) == column_nms)
-  d
-}
-
-get_stats <- function(sample, vcf_type, pass_or_all) {
+get_stats <- function(woof_final, sample, vcf_type, pass_or_all) {
   dplyr::bind_cols(
-    read_count_files(sample, vcf_type, pass_or_all),
-    read_eval_file(sample, vcf_type, pass_or_all))
+    read_count_files(woof_final, sample, vcf_type, pass_or_all),
+    woofr::read_eval_file(file.path(woof_final, sample, "vcf_eval", vcf_type, pass_or_all, "eval_stats.tsv")))
 }
-```
 
-```{r analysis-snvs}
-get_stats_sample <- function(sample) {
+get_stats_sample <- function(sample, vcf_types) {
 
   get_stats_sample_subset <- function(sample, pass_or_all) {
     vcf_types %>%
-      purrr::map(~ get_stats(sample, .x, pass_or_all)) %>%
+      purrr::map(~ get_stats(woof_final, sample, .x, pass_or_all)) %>%
       dplyr::bind_rows()
   }
 
@@ -148,14 +121,15 @@ get_stats_sample <- function(sample) {
     get_stats_sample_subset(sample, "ALL")
   )
 }
+```
 
-d <- purrr::map(samples, get_stats_sample) %>%
+```{r analysis_snvs}
+d <- purrr::map(samples, ~ get_stats_sample(.x, snv_vcf_types)) %>%
   dplyr::bind_rows() %>%
   dplyr::mutate(id = dplyr::row_number())
 ```
 
-
-```{r tab-descr-snvs}
+```{r tab_descr_snvs}
 x <- dplyr::tribble(
   ~Column,    ~Description,
   "run1",     "woof run1",
@@ -180,7 +154,7 @@ cap <- htmltools::tags$caption(htmltools::div(paste(cap[1:5], collapse = "; ")),
 
 #### Comparison Table
 
-```{r eval-tab-snvs}
+```{r eval_tab_snvs}
 bgsize <- '90% 90%'
 big_mark_cols <- c("run1_count", "run2_count",
                    "SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN",
