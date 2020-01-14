@@ -88,10 +88,10 @@ snv_vcf_types <-
   file.path(woof_final, samples, "vcf_eval") %>%
   list.dirs(recursive = FALSE, full.names = FALSE) %>%
   unique()
-allowed_snv_vcf_types <- c("ensemble-batch", "ensemble-germ", "gatk-germ", "mutect-batch",
-                           "strelka-batch", "strelka-germ", "vardict-batch", "vardict-germ",
-                           "pcgr", "cpsr")
-stopifnot(snv_vcf_types %in% allowed_snv_vcf_types)
+# allowed_snv_vcf_types <- c("ensemble-batch", "ensemble-germ", "gatk-germ", "mutect-batch",
+#                            "strelka-batch", "strelka-germ", "vardict-batch", "vardict-germ",
+#                            "pcgr", "cpsr")
+# stopifnot(snv_vcf_types %in% allowed_snv_vcf_types)
 
 read_count_files <- function(woof_final, sample, vcf_type, pass_or_all) {
 
@@ -197,6 +197,268 @@ d %>%
   ) %>%
   formatCurrency(big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
 ```
+
+### Structural Variants
+
+```{r funcs-svs}
+read_manta_both <- function(sample, f1, f2) {
+
+  read_manta_file <- function(sample, f1_or_f2) {
+    stopifnot(sample %in% samples, f1_or_f2 %in% c(f1, f2))
+    manta_fnames <- list.files(file.path(raijin_share, sample, f1_or_f2),
+                               pattern = "prioritize.*vcf.gz$", recursive = TRUE, full.names = TRUE)
+    manta_som_fname <- manta_fnames[!grepl("-germline-sv-prioritize", basename(manta_fnames))]
+    stopifnot(length(manta_som_fname) == 1)
+
+    sv <- manta_som_fname %>%
+      normalizePath() %>%
+      rock::prep_manta_vcf()
+
+    list(sv = sv$sv, fname = manta_som_fname)
+  }
+
+  sv1 <- read_manta_file(sample, f1)
+  sv2 <- read_manta_file(sample, f2)
+
+  list(sv1 = list(sv = sv1$sv, fname = sv1$fname),
+       sv2 = list(sv = sv2$sv, fname = sv2$fname))
+}
+
+manta_isec <- function(sample, f1, f2, bnd_switch = TRUE) {
+
+  switch_bnd <- function(d) {
+    stopifnot(all(colnames(d) %in% c("chrom1", "pos1", "chrom2", "pos2", "svtype")))
+    no_bnd <- dplyr::filter(d, !.data$svtype %in% "BND")
+    bnd <-
+      dplyr::filter(d, .data$svtype %in% "BND") %>%
+      dplyr::select(chrom1 = .data$chrom2, pos1 = .data$pos2,
+                    chrom2 = .data$chrom1, pos2 = .data$pos1, .data$svtype)
+
+    dplyr::bind_rows(no_bnd, bnd)
+  }
+
+  mb <- read_manta_both(sample, f1, f2)
+  manta_fname1 <- mb$sv1$fname
+  manta_fname2 <- mb$sv2$fname
+  tot_vars <- list(run1 = nrow(mb$sv1$sv), run2 = nrow(mb$sv2$sv))
+  col_nms <- colnames(mb$sv1$sv)
+  fp <- dplyr::anti_join(mb$sv1$sv, mb$sv2$sv, by = col_nms)
+  fn <- dplyr::anti_join(mb$sv2$sv, mb$sv1$sv, by = col_nms)
+
+  if (bnd_switch) {
+    # some real matching cases simply have switched BND mates
+    fp_new <- dplyr::anti_join(switch_bnd(fp), fn, by = col_nms) %>% switch_bnd()
+    fn_new <- dplyr::anti_join(switch_bnd(fn), fp, by = col_nms) %>% switch_bnd()
+    fp <- fp_new
+    fn <- fn_new
+  }
+
+  return(list(sample = sample,
+              file1 = manta_fname1,
+              file2 = manta_fname2,
+              tot_vars = tot_vars,
+              fp = fp,
+              fn = fn))
+}
+
+manta_isec_stats <- function(mi) {
+  samplename <- mi$sample
+  fn <- nrow(mi$fn)
+  fp <- nrow(mi$fp)
+  tp <- mi$tot_vars$run2 - fn
+  truth <- tp + fn
+  recall <- tp / truth
+  precision <- tp / (tp + fp)
+
+  dplyr::tibble(
+    sample = samplename, vcf_type = "manta-svpri",
+    run1_count = mi$tot_vars$run1, run2_count = mi$tot_vars$run2,
+    Recall = round(recall, 3), Precision = round(precision, 3), Truth = truth,
+    TP = tp, FP = fp, FN = fn
+  )
+}
+
+get_circos <- function(mi) {
+
+  prep_svs_circos <- function(mi) {
+    sv <- dplyr::bind_rows(list(fp = mi$fp, fn = mi$fn), .id = "fp_or_fn")
+    links_coloured <- sv %>%
+      dplyr::mutate(chrom1 = paste0("hs", .data$chrom1),
+                    chrom2 = paste0("hs", .data$chrom2)) %>%
+      dplyr::mutate(col = dplyr::case_when(
+        fp_or_fn == "fp" ~ '(0,255,0)',
+        fp_or_fn == "fn" ~ '(255,0,0)',
+        TRUE ~ '0,0,0')) %>%
+      dplyr::mutate(pos1b = .data$pos1,
+                    pos2b = .data$pos2,
+                    col = paste0('color=', col)) %>%
+      dplyr::select(.data$chrom1, .data$pos1, .data$pos1b, .data$chrom2, .data$pos2, .data$pos2b, .data$col)
+    return(links_coloured)
+  }
+
+  write_circos_configs <- function(mi) {
+    sample <- mi$sample
+    outdir <- file.path(raijin_share, sample, "woof/final/circos/manta_isec")
+    dir.create(outdir, recursive = TRUE)
+
+    links <- prep_svs_circos(mi)
+    message(glue::glue("Writing circos links file to '{outdir}'."))
+    readr::write_tsv(links, file.path(outdir, "SAMPLE.link.circos"), col_names = FALSE)
+
+    message(glue::glue("Copying circos templates to '{outdir}'"))
+    file.copy(from = system.file("templates/circos", glue::glue("circos_sv.conf"), package = "pebbles"),
+              to = file.path(outdir, "circos.conf"), overwrite = TRUE)
+    file.copy(system.file("templates/circos", "gaps.txt", package = "pebbles"), outdir, overwrite = TRUE)
+    file.copy(system.file("templates/circos", "ideogram.conf", package = "pebbles"), outdir, overwrite = TRUE)
+
+    return(outdir)
+  }
+
+  run_circos <- function(outdir, sample) {
+    export_path <- "export PATH=/g/data3/gx8/extras/umccrise/miniconda/envs/umccrise_purple/bin:/g/data3/gx8/extras/umccrise/miniconda/bin:/opt/bin:/bin:/usr/bin:/opt/pbs/default/bin"
+    cmd <- glue::glue("{export_path} && echo $(date) running circos on {sample} && circos -nosvg -conf {outdir}/circos.conf -outputdir {outdir} -outputfile circos_{sample}.png")
+    system(cmd, ignore.stdout = TRUE)
+    return(file.path(outdir, glue::glue("circos_{sample}.png")))
+  }
+
+  outdir <- write_circos_configs(mi)
+  circos_png <- run_circos(outdir, mi$sample)
+  circos_png
+}
+
+
+sv_results_per_sample <- function(sample) {
+  mi <- manta_isec(sample, f1, f2)
+  mi_stats <- manta_isec_stats(mi)
+  circos <- get_circos(mi)
+
+  list(mi = mi, stats = mi_stats, circos = circos)
+}
+```
+
+
+
+
+```{r analysis-svs, message=F, warning=F}
+sv_results <-
+  purrr::map(samples, sv_results_per_sample) %>%
+  purrr::set_names(samples)
+```
+
+```{r tab-descr-svs}
+x <- dplyr::tribble(
+  ~Column,    ~Description,
+  "run1",     f1,
+  "run2",     paste(f2, "(truthset)"),
+  "FP",       "False Positive",
+  "FN",       "False Negative",
+  "TP",       "True Positive",
+  "Truth",    "TP + FN",
+  "Recall",   "TP / Truth",
+  "Precision", "TP / TP + FP"
+)
+
+cap <- x %>%
+  mutate(d = paste(Column, Description, sep = ": ")) %>%
+  pull(d)
+cap <- htmltools::tags$caption(htmltools::div(paste(cap[1:4], collapse = "; ")),
+                               htmltools::div(paste(cap[5:length(cap)], collapse = "; ")))
+```
+
+
+#### Comparison Table
+
+```{r eval-tab-svs}
+bgsize <- '90% 90%'
+big_mark_cols <- c("run1_count", "run2_count",
+                   "Truth", "TP", "FP", "FN")
+
+sv_stats <- purrr::map_dfr(sv_results, "stats")
+sv_stats %>%
+  dplyr::mutate_if(is.character, as.factor) %>%
+  DT::datatable(
+    rownames = FALSE, caption = cap,
+    filter = list(position = "top", clear = FALSE, plain = TRUE),
+    extensions = c("Scroller"),
+    options = list(scroller = TRUE, scrollX = TRUE, scrollY = 220)) %>%
+  formatStyle(
+    'Recall',
+    background = styleColorBar(sv_stats$Recall, 'lightgreen'),
+    backgroundSize = bgsize,
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+  ) %>%
+  formatStyle(
+    'Precision',
+    background = styleColorBar(sv_stats$Precision, 'lightgreen'),
+    backgroundSize = bgsize,
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+  ) %>%
+  formatCurrency(big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
+```
+
+#### FP/FN Table
+Showing FP and FN SVs from above:
+
+```{r sv-fp-fn-table}
+fp <- purrr::map(sv_results, function(x) x[["mi"]][["fp"]]) %>%
+  dplyr::bind_rows(.id = "sample")
+fn <- purrr::map(sv_results, function(x) x[["mi"]][["fn"]]) %>%
+  dplyr::bind_rows(.id = "sample")
+fp_fn <- dplyr::bind_rows(list(fp = fp, fn = fn), .id = "FP_or_FN")
+
+fp_fn %>%
+  dplyr::mutate_if(is.character, as.factor) %>%
+  DT::datatable(
+    rownames = FALSE,
+    filter = list(position = "top", clear = FALSE, plain = TRUE),
+    extensions = c("Scroller"),
+    options = list(scroller = TRUE, scrollX = TRUE, scrollY = 400)) %>%
+  formatCurrency(c("pos1", "pos2"), currency = "", interval = 3, mark = ",", digits = 0)
+```
+
+
+#### Circos Plots {.tabset .tabset-fade}
+
+* <span style="color:green">Green</span> = False Positives
+* <span style="color:red">Red</span> = False Negatives
+
+```{r prep-sv-circos}
+circos_plots <- purrr::map_chr(sv_results, "circos")
+```
+
+##### `r i <- 0; samples[i <- i + 1]`
+
+```{r out.width="50%"}
+knitr::include_graphics(circos_plots[i])
+```
+
+##### `r  samples[i <- i + 1]`
+
+```{r out.width="50%"}
+knitr::include_graphics(circos_plots[i])
+```
+
+##### `r  samples[i <- i + 1]`
+
+```{r out.width="50%"}
+knitr::include_graphics(circos_plots[i])
+```
+
+##### `r  samples[i <- i + 1]`
+
+```{r out.width="50%"}
+knitr::include_graphics(circos_plots[i])
+```
+
+##### `r  samples[i <- i + 1]`
+
+```{r out.width="50%"}
+knitr::include_graphics(circos_plots[i])
+```
+
+
 
 Methods
 -------
