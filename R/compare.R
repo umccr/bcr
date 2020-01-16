@@ -109,8 +109,8 @@ umccrise_outputs <- function(d) {
     dplyr::mutate(bname = basename(.data$fpath)) %>%
     dplyr::select(.data$bname, .data$fpath) %>%
     dplyr::mutate(ftype = dplyr::case_when(
-      grepl("-somatic.pcgr.pass.vcf.gz$", .data$bname) ~ "pcgr",
-      grepl("-normal.cpsr.pass.vcf.gz", .data$bname) ~ "cpsr",
+      grepl("-somatic-ensemble-PASS.vcf.gz$", .data$bname) ~ "pcgr",
+      grepl("-normal-ensemble-predispose_genes.vcf.gz$", .data$bname) ~ "cpsr",
       TRUE ~ "OTHER")) %>%
     dplyr::mutate(fpath = normalizePath(.data$fpath)) %>%
     dplyr::select(.data$ftype, .data$fpath)
