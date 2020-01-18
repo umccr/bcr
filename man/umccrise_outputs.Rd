@@ -2,26 +2,28 @@
 % Please edit documentation in R/compare.R
 \name{umccrise_outputs}
 \alias{umccrise_outputs}
-\title{Get final umccrise sample files}
+\title{Get umccrise final output files}
 \usage{
 umccrise_outputs(d)
 }
 \arguments{
-\item{d}{Path to \code{umccrised/<batch>__<tumor_name>} umccrise directory.}
+\item{d}{Path to \code{<umccrised/sample>} umccrise directory.}
 }
 \value{
 A tibble with the following columns:
 \itemize{
-\item fpath: path to file
-\item ftype: file type. Can be one of:
-\enumerate{
-\item pcgr
-\item cpsr
+\item vartype: variant type. Can be one of:
+\itemize{
+\item snv (single-nucleotide/indel variants)
+\item sv (structural variants)
+\item cnv (copy number variants)
 }
+\item flabel: file label (e.g. pcgr, cpsr, purple etc.)
+\item fpath: path to file
 }
 }
 \description{
-Generates a tibble containing absolute paths to final umccrise sample files.
+Generates a tibble containing absolute paths to umccrise final files.
 }
 \examples{
 \dontrun{

@@ -3,12 +3,11 @@
 #'
 #' Generates a tibble containing absolute paths to bcbio final files.
 #'
-#' @param d Path to `final` bcbio directory.
+#' @param d Path to `<bcbio/final>` directory.
 #' @return A tibble with the following columns:
 #'   - vartype: variant type. Can be one of:
 #'     - snv (single-nucleotide/indel variants)
 #'     - sv (structural variants)
-#'     - cnv (copy number variants)
 #'   - flabel: file label (e.g. ensemble, manta, vardict etc.)
 #'   - fpath: path to file
 #'
@@ -38,26 +37,27 @@ bcbio_outputs <- function(d) {
         grepl("mutect2", .data$bname) ~ "mutect2-batch_bc",
         grepl("germline-gatk-haplotype", .data$bname) ~ "gatk-germ_bc",
         grepl("manta", .data$bname) ~ "manta_bc",
-        TRUE ~ .data$bname),
+        TRUE ~ "IGNORE_ME"),
       vartype = dplyr::case_when(
-        flabel == "manta_bc" ~ "sv",
-        TRUE ~ "snv")) %>%
+        flabel == "IGNORE_ME" ~ "IGNORE_ME",
+        flabel == "manta_bc" ~ "SV",
+        TRUE ~ "SNV")) %>%
     dplyr::select(.data$vartype, .data$flabel, .data$fpath)
 }
 
-#' Gather bcbio filepaths from two final directories into a single tibble
+#' Gather bcbio filepaths from two bcbio final directories into a single tibble
 #'
 #' Generates a tibble containing absolute paths to files from two bcbio final directories.
 #'
-#' @param d1 Path to first `final` bcbio directory.
-#' @param d2 Path to second `final` bcbio directory.
+#' @param d1 Path to first `<bcbio/final>` directory.
+#' @param d2 Path to second `<bcbio/final>` directory.
 #' @param sample Sample name.
 #' @return A tibble with the following columns:
 #'   - sample name
 #'   - file type (e.g. snv, sv, cnv)
 #'   - file label (e.g. ensemble, manta, vardict etc.)
-#'   - d1: final1 file path
-#'   - d2: final2 file path
+#'   - run1 file path
+#'   - run2 file path
 #'
 #' @examples
 #' \dontrun{
@@ -72,21 +72,24 @@ merge_bcbio_outputs <- function(d1, d2, sample) {
   final2 <- bcbio_outputs(d2)
 
   dplyr::left_join(final1, final2, by = c("flabel", "vartype")) %>%
+    dplyr::filter(!.data$vartype == "IGNORE_ME") %>%
     dplyr::mutate(sample_nm = sample) %>%
-    dplyr::select(.data$sample_nm, .data$vartype, .data$fpath.x, .data$fpath.y) %>%
+    dplyr::select(.data$sample_nm, .data$vartype, .data$flabel, .data$fpath.x, .data$fpath.y) %>%
     utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }
 
-#' Get final umccrise sample files
+#' Get umccrise final output files
 #'
-#' Generates a tibble containing absolute paths to final umccrise sample files.
+#' Generates a tibble containing absolute paths to umccrise final files.
 #'
-#' @param d Path to `umccrised/<batch>__<tumor_name>` umccrise directory.
+#' @param d Path to `<umccrised/sample>` umccrise directory.
 #' @return A tibble with the following columns:
+#'   - vartype: variant type. Can be one of:
+#'     - snv (single-nucleotide/indel variants)
+#'     - sv (structural variants)
+#'     - cnv (copy number variants)
+#'   - flabel: file label (e.g. pcgr, cpsr, purple etc.)
 #'   - fpath: path to file
-#'   - ftype: file type. Can be one of:
-#'     1. pcgr
-#'     2. cpsr
 #'
 #' @examples
 #' \dontrun{
@@ -96,32 +99,44 @@ merge_bcbio_outputs <- function(d1, d2, sample) {
 #' @export
 umccrise_outputs <- function(d) {
   stopifnot(dir.exists(d))
+  # grab PURPLE's purple.gene.cnv file too
   vcfs <- list.files(d, pattern = "\\.vcf.gz$", recursive = TRUE, full.names = TRUE)
-  stopifnot(length(vcfs) > 0)
+  purple_cnv <- list.files(d, pattern = "purple\\.gene", recursive = TRUE, full.names = TRUE)
+  stopifnot(length(vcfs) > 0, length(purple_cnv) <= 1)
+  all_files <- c(vcfs, purple_cnv)
 
-  tibble::tibble(fpath = vcfs) %>%
-    dplyr::mutate(bname = basename(.data$fpath)) %>%
-    dplyr::select(.data$bname, .data$fpath) %>%
-    dplyr::mutate(ftype = dplyr::case_when(
-      grepl("-somatic-ensemble-PASS.vcf.gz$", .data$bname) ~ "pcgr",
-      grepl("-normal-ensemble-predispose_genes.vcf.gz$", .data$bname) ~ "cpsr",
-      TRUE ~ "OTHER")) %>%
-    dplyr::mutate(fpath = normalizePath(.data$fpath)) %>%
-    dplyr::select(.data$ftype, .data$fpath)
+  tibble::tibble(fpath = all_files) %>%
+    dplyr::mutate(
+      bname = sub("\\.vcf.gz$", "", basename(.data$fpath)),
+      fpath = normalizePath(.data$fpath),
+      flabel = dplyr::case_when(
+        grepl("-somatic-ensemble-PASS$", .data$bname) ~ "pcgr_um",
+        grepl("-normal-ensemble-predispose_genes$", .data$bname) ~ "cpsr_um",
+        grepl("manta$", .data$bname) ~ "manta_um",
+        grepl("purple\\.gene", .data$bname) ~ "purple-gene_um",
+        TRUE ~ "IGNORE_ME"),
+      vartype = dplyr::case_when(
+        flabel == "IGNORE_ME" ~ "IGNORE_ME",
+        flabel == "manta_um" ~ "SV",
+        flabel == "purple-gene_um" ~ "CNV",
+        flabel %in% c("pcgr_um", "cpsr_um") ~ "SNV",
+        TRUE ~ "IGNORE_ME")) %>%
+    dplyr::select(.data$vartype, .data$flabel, .data$fpath)
 }
 
-#' Gather umccrise filepaths from two different sample directories into a single tibble
+#' Gather umccrise filepaths from two umccrise final directories into a single tibble
 #'
-#' Generates a tibble containing absolute paths to files from two umccrise sample directories.
+#' Generates a tibble containing absolute paths to files from two umccrise final directories.
 #'
-#' @param d1 Path to first umccrise sample directory.
-#' @param d2 Path to second umccrise sample directory.
+#' @param d1 Path to first <umccrised/sample> directory.
+#' @param d2 Path to second <umccrised/sample> directory.
 #' @param sample Sample name.
 #' @return A tibble with the following columns:
-#'   - sample: sample name.
-#'   - ftype: file type.
-#'   - d1: sample1 file path
-#'   - d2: sample2 file path
+#'   - sample name
+#'   - file type (e.g. snv, sv, cnv)
+#'   - file label (e.g. pcgr, cpsr, purple etc.)
+#'   - run1 file path
+#'   - run2 file path
 #'
 #' @examples
 #' \dontrun{
@@ -132,18 +147,13 @@ umccrise_outputs <- function(d) {
 #' @export
 merge_umccrise_outputs <- function(d1, d2, sample) {
 
-  um1 <-
-    umccrise_outputs(d1) %>%
-    dplyr::filter(!.data$ftype %in% c("OTHER"))
-  um2 <-
-    umccrise_outputs(d2) %>%
-    dplyr::filter(!.data$ftype %in% c("OTHER"))
+  um1 <- umccrise_outputs(d1)
+  um2 <- umccrise_outputs(d2)
 
-  stopifnot(all(um1$ftype == um2$ftype))
-
-  dplyr::left_join(um1, um2, by = "ftype") %>%
-    dplyr::mutate(sample = sample) %>%
-    dplyr::select(.data$sample, .data$ftype, .data$fpath.x, .data$fpath.y) %>%
+  dplyr::left_join(um1, um2, by = c("flabel", "vartype")) %>%
+    dplyr::filter(!.data$vartype == "IGNORE_ME") %>%
+    dplyr::mutate(sample_nm = sample) %>%
+    dplyr::select(.data$sample_nm, .data$vartype, .data$flabel, .data$fpath.x, .data$fpath.y) %>%
     utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }
 

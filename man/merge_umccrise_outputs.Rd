@@ -2,28 +2,29 @@
 % Please edit documentation in R/compare.R
 \name{merge_umccrise_outputs}
 \alias{merge_umccrise_outputs}
-\title{Gather umccrise filepaths from two different sample directories into a single tibble}
+\title{Gather umccrise filepaths from two umccrise final directories into a single tibble}
 \usage{
 merge_umccrise_outputs(d1, d2, sample)
 }
 \arguments{
-\item{d1}{Path to first umccrise sample directory.}
+\item{d1}{Path to first <umccrised/sample> directory.}
 
-\item{d2}{Path to second umccrise sample directory.}
+\item{d2}{Path to second <umccrised/sample> directory.}
 
 \item{sample}{Sample name.}
 }
 \value{
 A tibble with the following columns:
 \itemize{
-\item sample: sample name.
-\item ftype: file type.
-\item d1: sample1 file path
-\item d2: sample2 file path
+\item sample name
+\item file type (e.g. snv, sv, cnv)
+\item file label (e.g. pcgr, cpsr, purple etc.)
+\item run1 file path
+\item run2 file path
 }
 }
 \description{
-Generates a tibble containing absolute paths to files from two umccrise sample directories.
+Generates a tibble containing absolute paths to files from two umccrise final directories.
 }
 \examples{
 \dontrun{

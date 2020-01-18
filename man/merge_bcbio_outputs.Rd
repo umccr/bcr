@@ -2,14 +2,14 @@
 % Please edit documentation in R/compare.R
 \name{merge_bcbio_outputs}
 \alias{merge_bcbio_outputs}
-\title{Gather bcbio filepaths from two final directories into a single tibble}
+\title{Gather bcbio filepaths from two bcbio final directories into a single tibble}
 \usage{
 merge_bcbio_outputs(d1, d2, sample)
 }
 \arguments{
-\item{d1}{Path to first \code{final} bcbio directory.}
+\item{d1}{Path to first \code{<bcbio/final>} directory.}
 
-\item{d2}{Path to second \code{final} bcbio directory.}
+\item{d2}{Path to second \code{<bcbio/final>} directory.}
 
 \item{sample}{Sample name.}
 }
@@ -19,8 +19,8 @@ A tibble with the following columns:
 \item sample name
 \item file type (e.g. snv, sv, cnv)
 \item file label (e.g. ensemble, manta, vardict etc.)
-\item d1: final1 file path
-\item d2: final2 file path
+\item run1 file path
+\item run2 file path
 }
 }
 \description{

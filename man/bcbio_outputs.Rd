@@ -7,7 +7,7 @@
 bcbio_outputs(d)
 }
 \arguments{
-\item{d}{Path to \code{final} bcbio directory.}
+\item{d}{Path to \code{<bcbio/final>} directory.}
 }
 \value{
 A tibble with the following columns:
@@ -16,7 +16,6 @@ A tibble with the following columns:
 \itemize{
 \item snv (single-nucleotide/indel variants)
 \item sv (structural variants)
-\item cnv (copy number variants)
 }
 \item flabel: file label (e.g. ensemble, manta, vardict etc.)
 \item fpath: path to file
