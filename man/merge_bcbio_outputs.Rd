@@ -16,8 +16,9 @@ merge_bcbio_outputs(d1, d2, sample)
 \value{
 A tibble with the following columns:
 \itemize{
-\item sample: sample name
-\item ftype: file type
+\item sample name
+\item file type (e.g. snv, sv, cnv)
+\item file label (e.g. ensemble, manta, vardict etc.)
 \item d1: final1 file path
 \item d2: final2 file path
 }

@@ -5,16 +5,12 @@
 #'
 #' @param d Path to `final` bcbio directory.
 #' @return A tibble with the following columns:
+#'   - vartype: variant type. Can be one of:
+#'     - snv (single-nucleotide/indel variants)
+#'     - sv (structural variants)
+#'     - cnv (copy number variants)
+#'   - flabel: file label (e.g. ensemble, manta, vardict etc.)
 #'   - fpath: path to file
-#'   - ftype: file type. Can be one of:
-#'     1. ensembl-batch
-#'     2. mutect2-batch
-#'     3. strelka2-batch
-#'     4. vardict-batch
-#'     5. ensemble-germ
-#'     6. gatk-germ
-#'     7. strelka2-germ
-#'     8. vardict-germ
 #'
 #' @examples
 #' \dontrun{
@@ -28,22 +24,25 @@ bcbio_outputs <- function(d) {
   stopifnot(length(vcfs) > 0)
 
   tibble::tibble(fpath = vcfs) %>%
-    dplyr::mutate(bname = basename(.data$fpath)) %>%
-    dplyr::select(.data$bname, .data$fpath) %>%
-    dplyr::mutate(ftype = dplyr::case_when(
-      grepl("germline-ensemble", .data$bname) ~ "ensemble-germ",
-      grepl("ensemble", .data$bname) ~ "ensemble-batch",
-      grepl("germline-vardict", .data$bname) ~ "vardict-germ",
-      grepl("vardict-germline", .data$bname) ~ "OTHER",
-      grepl("vardict", .data$bname) ~ "vardict-batch",
-      grepl("germline-strelka2", .data$bname) ~ "strelka-germ",
-      grepl("strelka2", .data$bname) ~ "strelka-batch",
-      grepl("mutect2", .data$bname) ~ "mutect-batch",
-      grepl("germline-gatk-haplotype", .data$bname) ~ "gatk-germ",
-      grepl("manta", .data$bname) ~ "Manta",
-      TRUE ~ "OTHER")) %>%
-    dplyr::mutate(fpath = normalizePath(.data$fpath)) %>%
-    dplyr::select(.data$ftype, .data$fpath)
+    dplyr::mutate(
+      bname = sub("\\.vcf.gz$", "", basename(.data$fpath)),
+      fpath = normalizePath(.data$fpath),
+      flabel = dplyr::case_when(
+        grepl("germline-ensemble", .data$bname) ~ "ens-germ_bc",
+        grepl("ensemble", .data$bname) ~ "ens-batch_bc",
+        grepl("germline-vardict", .data$bname) ~ "vardict-germ_bc",
+        grepl("vardict-germline", .data$bname) ~ "vardict-germ2_bc",
+        grepl("vardict", .data$bname) ~ "vardict-batch_bc",
+        grepl("germline-strelka2", .data$bname) ~ "strelka2-germ_bc",
+        grepl("strelka2", .data$bname) ~ "strelka2-batch_bc",
+        grepl("mutect2", .data$bname) ~ "mutect2-batch_bc",
+        grepl("germline-gatk-haplotype", .data$bname) ~ "gatk-germ_bc",
+        grepl("manta", .data$bname) ~ "manta_bc",
+        TRUE ~ .data$bname),
+      vartype = dplyr::case_when(
+        flabel == "manta_bc" ~ "sv",
+        TRUE ~ "snv")) %>%
+    dplyr::select(.data$vartype, .data$flabel, .data$fpath)
 }
 
 #' Gather bcbio filepaths from two final directories into a single tibble
@@ -54,8 +53,9 @@ bcbio_outputs <- function(d) {
 #' @param d2 Path to second `final` bcbio directory.
 #' @param sample Sample name.
 #' @return A tibble with the following columns:
-#'   - sample: sample name
-#'   - ftype: file type
+#'   - sample name
+#'   - file type (e.g. snv, sv, cnv)
+#'   - file label (e.g. ensemble, manta, vardict etc.)
 #'   - d1: final1 file path
 #'   - d2: final2 file path
 #'
@@ -68,18 +68,12 @@ bcbio_outputs <- function(d) {
 #' @export
 merge_bcbio_outputs <- function(d1, d2, sample) {
 
-  final1 <-
-    bcbio_outputs(d1) %>%
-    dplyr::filter(!.data$ftype %in% c("Manta", "OTHER"))
-  final2 <-
-    bcbio_outputs(d2) %>%
-    dplyr::filter(!.data$ftype %in% c("Manta", "OTHER"))
+  final1 <- bcbio_outputs(d1)
+  final2 <- bcbio_outputs(d2)
 
-  stopifnot(all(final1$ftype == final2$ftype))
-
-  dplyr::left_join(final1, final2, by = "ftype") %>%
-    dplyr::mutate(sample = sample) %>%
-    dplyr::select(.data$sample, .data$ftype, .data$fpath.x, .data$fpath.y) %>%
+  dplyr::left_join(final1, final2, by = c("flabel", "vartype")) %>%
+    dplyr::mutate(sample_nm = sample) %>%
+    dplyr::select(.data$sample_nm, .data$vartype, .data$fpath.x, .data$fpath.y) %>%
     utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }
 
