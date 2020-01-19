@@ -38,7 +38,7 @@ knitr::opts_chunk$set(
 ```{r render_report_interactively, eval=F, echo=F}
 params_tmp <- list(
   local = list(
-    woof_final = "/Users/pdiakumis/Desktop/projects/umccr/woof_compare/test/woof/final",
+    woof_final = "/Users/pdiakumis/Desktop/projects/umccr/woofr/nogit/data/woof/final",
     run1_nm = "run1",
     run2_nm = "run2"
   ),
@@ -83,35 +83,32 @@ woof_final <- params$woof_final
 stopifnot(dir.exists(woof_final))
 
 samples <- list.dirs(woof_final, recursive = FALSE, full.names = FALSE)
-# get vcf_types from unique woof/final/<sample>/vcf_eval/<vcf_type>/
-snv_vcf_types <-
+
+# Get file labels from unique woof/final/<sample>/vcf_eval/<vcf_type>/
+flabels_snv <-
   file.path(woof_final, samples, "vcf_eval") %>%
   list.dirs(recursive = FALSE, full.names = FALSE) %>%
   unique()
-# allowed_snv_vcf_types <- c("ensemble-batch", "ensemble-germ", "gatk-germ", "mutect-batch",
-#                            "strelka-batch", "strelka-germ", "vardict-batch", "vardict-germ",
-#                            "pcgr", "cpsr")
-# stopifnot(snv_vcf_types %in% allowed_snv_vcf_types)
 
-read_count_files <- function(woof_final, sample, vcf_type, pass_or_all) {
+read_count_files <- function(woof_final, sample, flabel, pass_or_all) {
 
-  c1 <- file.path(woof_final, sample, "vcf_counts", "f1", vcf_type, pass_or_all, "count_vars.txt") %>% woofr::read_count_file()
-  c2 <- file.path(woof_final, sample, "vcf_counts", "f2", vcf_type, pass_or_all, "count_vars.txt") %>% woofr::read_count_file()
+  c1 <- file.path(woof_final, sample, "vcf_counts", "f1", flabel, pass_or_all, "count_vars.txt") %>% woofr::read_count_file()
+  c2 <- file.path(woof_final, sample, "vcf_counts", "f2", flabel, pass_or_all, "count_vars.txt") %>% woofr::read_count_file()
 
-  # keeping sample/vcf_type/subset in row
-  dplyr::tibble(sample = sample, vcf_type = vcf_type, subset = pass_or_all, run1_count = c1, run2_count = c2)
+  # keeping sample/snv_label/subset in row
+  dplyr::tibble(sample = sample, flabel = flabel, subset = pass_or_all, run1_count = c1, run2_count = c2)
 }
 
-get_stats <- function(woof_final, sample, vcf_type, pass_or_all) {
+get_stats <- function(woof_final, sample, flabel, pass_or_all) {
   dplyr::bind_cols(
-    read_count_files(woof_final, sample, vcf_type, pass_or_all),
-    woofr::read_eval_file(file.path(woof_final, sample, "vcf_eval", vcf_type, pass_or_all, "eval_stats.tsv")))
+    read_count_files(woof_final, sample, flabel, pass_or_all),
+    woofr::read_eval_file(file.path(woof_final, sample, "vcf_eval", flabel, pass_or_all, "eval_stats.tsv")))
 }
 
-get_stats_sample <- function(sample, vcf_types) {
+get_stats_sample <- function(sample, flab) {
 
   get_stats_sample_subset <- function(sample, pass_or_all) {
-    vcf_types %>%
+    flab %>%
       purrr::map(~ get_stats(woof_final, sample, .x, pass_or_all)) %>%
       dplyr::bind_rows()
   }
@@ -124,7 +121,7 @@ get_stats_sample <- function(sample, vcf_types) {
 ```
 
 ```{r analysis_snvs}
-d <- purrr::map(samples, ~ get_stats_sample(.x, snv_vcf_types)) %>%
+d <- purrr::map(samples, ~ get_stats_sample(.x, flabels_snv)) %>%
   dplyr::bind_rows() %>%
   dplyr::mutate(id = dplyr::row_number())
 ```
@@ -164,7 +161,7 @@ bar_range <- c(0.97, 1)
 
 d %>%
   dplyr::select(-matches("f[123]$")) %>%
-  dplyr::select(id, sample, vcf_type, subset, run1_count, run2_count,
+  dplyr::select(id, sample, flabel, subset, run1_count, run2_count,
                 contains("Recall"), contains("Precision"),
                 everything()) %>%
   dplyr::mutate_if(is.numeric, round, 3) %>%
@@ -201,30 +198,13 @@ d %>%
 ### Structural Variants
 
 ```{r funcs-svs}
-read_manta_both <- function(sample, f1, f2) {
-
-  read_manta_file <- function(sample, f1_or_f2) {
-    stopifnot(sample %in% samples, f1_or_f2 %in% c(f1, f2))
-    manta_fnames <- list.files(file.path(raijin_share, sample, f1_or_f2),
-                               pattern = "prioritize.*vcf.gz$", recursive = TRUE, full.names = TRUE)
-    manta_som_fname <- manta_fnames[!grepl("-germline-sv-prioritize", basename(manta_fnames))]
-    stopifnot(length(manta_som_fname) == 1)
-
-    sv <- manta_som_fname %>%
-      normalizePath() %>%
-      rock::prep_manta_vcf()
-
-    list(sv = sv$sv, fname = manta_som_fname)
-  }
-
-  sv1 <- read_manta_file(sample, f1)
-  sv2 <- read_manta_file(sample, f2)
-
-  list(sv1 = list(sv = sv1$sv, fname = sv1$fname),
-       sv2 = list(sv = sv2$sv, fname = sv2$fname))
+read_manta_both <- function(f1, f2) {
+  vcf1 <- rock::prep_manta_vcf(f1, filter_pass = TRUE)$sv
+  vcf2 <- rock::prep_manta_vcf(f2, filter_pass = TRUE)$sv
+  list(f1 = vcf1, f2 = vcf2)
 }
 
-manta_isec <- function(sample, f1, f2, bnd_switch = TRUE) {
+manta_isec <- function(f1, f2, bnd_switch = TRUE) {
 
   switch_bnd <- function(d) {
     stopifnot(all(colnames(d) %in% c("chrom1", "pos1", "chrom2", "pos2", "svtype")))
@@ -237,13 +217,11 @@ manta_isec <- function(sample, f1, f2, bnd_switch = TRUE) {
     dplyr::bind_rows(no_bnd, bnd)
   }
 
-  mb <- read_manta_both(sample, f1, f2)
-  manta_fname1 <- mb$sv1$fname
-  manta_fname2 <- mb$sv2$fname
-  tot_vars <- list(run1 = nrow(mb$sv1$sv), run2 = nrow(mb$sv2$sv))
-  col_nms <- colnames(mb$sv1$sv)
-  fp <- dplyr::anti_join(mb$sv1$sv, mb$sv2$sv, by = col_nms)
-  fn <- dplyr::anti_join(mb$sv2$sv, mb$sv1$sv, by = col_nms)
+  mb <- read_manta_both(f1, f2)
+  tot_vars <- list(run1 = nrow(mb$f1), run2 = nrow(mb$f2))
+  col_nms <- colnames(mb$f1)
+  fp <- dplyr::anti_join(mb$f1, mb$f2, by = col_nms)
+  fn <- dplyr::anti_join(mb$f2, mb$f1, by = col_nms)
 
   if (bnd_switch) {
     # some real matching cases simply have switched BND mates
@@ -253,16 +231,13 @@ manta_isec <- function(sample, f1, f2, bnd_switch = TRUE) {
     fn <- fn_new
   }
 
-  return(list(sample = sample,
-              file1 = manta_fname1,
-              file2 = manta_fname2,
-              tot_vars = tot_vars,
+  return(list(tot_vars = tot_vars,
               fp = fp,
               fn = fn))
 }
 
-manta_isec_stats <- function(mi) {
-  samplename <- mi$sample
+manta_isec_stats <- function(f1, f2, samplename, flab) {
+  mi <- manta_isec(f1, f2, bnd_switch = TRUE)
   fn <- nrow(mi$fn)
   fp <- nrow(mi$fp)
   tp <- mi$tot_vars$run2 - fn
@@ -271,7 +246,7 @@ manta_isec_stats <- function(mi) {
   precision <- tp / (tp + fp)
 
   dplyr::tibble(
-    sample = samplename, vcf_type = "manta-svpri",
+    sample = samplename, flabel = flab,
     run1_count = mi$tot_vars$run1, run2_count = mi$tot_vars$run2,
     Recall = round(recall, 3), Precision = round(precision, 3), Truth = truth,
     TP = tp, FP = fp, FN = fn
