@@ -24,7 +24,7 @@ A tibble with the following columns:
 }
 }
 \description{
-Generates a tibble containing absolute paths to files from two bcbio final directories.
+Generates a tibble containing absolute paths to (common) files from two bcbio final directories.
 }
 \examples{
 \dontrun{

@@ -24,7 +24,7 @@ A tibble with the following columns:
 }
 }
 \description{
-Generates a tibble containing absolute paths to files from two umccrise final directories.
+Generates a tibble containing absolute paths to (common) files from two umccrise final directories.
 }
 \examples{
 \dontrun{
