@@ -274,3 +274,62 @@ read_eval_file <- function(x) {
   stopifnot(names(res) == column_nms)
   res
 }
+
+#' Intersect two Manta VCF files
+#'
+#' Intersects two Manta VCF files for evaluation.
+#'
+#' @param f1 Path to first Manta file
+#' @param f2 Path to second ('truthset') Manta file
+#' @param bnd_switch Logical. Switch BND pairs for more matches (default: TRUE).
+#' @return A list with the following elements:
+#'   - tot_vars: total variants for file1 and file2
+#'   - fp: tibble with False Positive calls i.e. variants in f1 that are not in f2
+#'   - fn: tibble with False Negative calls i.e. variants in f2 that are not in f1
+#'
+#' @examples
+#'
+#' \dontrun{
+#' f1 <- "path/to/run1/manta.vcf.gz"
+#' f2 <- "path/to/run2/manta.vcf.gz"
+#' mi <- manta_isec(f1, f2)
+#' }
+#'
+#' @export
+manta_isec <- function(f1, f2, bnd_switch = TRUE) {
+
+  read_manta_both <- function(f1, f2) {
+    vcf1 <- rock::prep_manta_vcf(f1, filter_pass = TRUE)$sv
+    vcf2 <- rock::prep_manta_vcf(f2, filter_pass = TRUE)$sv
+    list(f1 = vcf1, f2 = vcf2)
+  }
+
+  switch_bnd <- function(d) {
+    stopifnot(all(colnames(d) %in% c("chrom1", "pos1", "chrom2", "pos2", "svtype")))
+    no_bnd <- dplyr::filter(d, !.data$svtype %in% "BND")
+    bnd <-
+      dplyr::filter(d, .data$svtype %in% "BND") %>%
+      dplyr::select(chrom1 = .data$chrom2, pos1 = .data$pos2,
+                    chrom2 = .data$chrom1, pos2 = .data$pos1, .data$svtype)
+
+    dplyr::bind_rows(no_bnd, bnd)
+  }
+
+  mb <- read_manta_both(f1, f2)
+  tot_vars <- list(run1 = nrow(mb$f1), run2 = nrow(mb$f2))
+  col_nms <- colnames(mb$f1)
+  fp <- dplyr::anti_join(mb$f1, mb$f2, by = col_nms)
+  fn <- dplyr::anti_join(mb$f2, mb$f1, by = col_nms)
+
+  if (bnd_switch) {
+    # some real matching cases simply have switched BND mates
+    fp_new <- dplyr::anti_join(switch_bnd(fp), fn, by = col_nms) %>% switch_bnd()
+    fn_new <- dplyr::anti_join(switch_bnd(fn), fp, by = col_nms) %>% switch_bnd()
+    fp <- fp_new
+    fn <- fn_new
+  }
+
+  return(list(tot_vars = tot_vars,
+              fp = fp,
+              fn = fn))
+}

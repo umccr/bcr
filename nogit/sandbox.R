@@ -17,9 +17,14 @@ merge_umccrise_outputs(um1, um2, sample)
 
 
 # Structural Variants
+sample <- "p25"
+d1 <- glue::glue("~/Desktop/projects/umccr/woof/nogit/data/umccrise_0.15.12/{sample}/final")
+d2 <- glue::glue("~/Desktop/projects/umccr/woof/nogit/data/umccrise_0.15.12/{sample}/umccrised/{sample}")
 
 manta_fnames <- list.files(c(d1, d2), pattern = "manta.vcf.gz$", recursive = TRUE, full.names = TRUE)
 f1 <- manta_fnames[1]
 f2 <- manta_fnames[2]
 
-manta_isec_stats(f1, f2, sample, "manta_bc")
+# read_manta_both(f1, f2)
+mi <- manta_isec(f1, f2, bnd_switch = TRUE)
+manta_isec_stats(mi, sample, "manta_bc")

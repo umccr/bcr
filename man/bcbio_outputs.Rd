@@ -14,8 +14,8 @@ A tibble with the following columns:
 \itemize{
 \item vartype: variant type. Can be one of:
 \itemize{
-\item snv (single-nucleotide/indel variants)
-\item sv (structural variants)
+\item SNV (single-nucleotide/indel variants)
+\item SV (structural variants)
 }
 \item flabel: file label (e.g. ensemble, manta, vardict etc.)
 \item fpath: path to file

@@ -17,7 +17,7 @@ merge_umccrise_outputs(d1, d2, sample)
 A tibble with the following columns:
 \itemize{
 \item sample name
-\item file type (e.g. snv, sv, cnv)
+\item variant type (e.g. SNV, SV, CNV)
 \item file label (e.g. pcgr, cpsr, purple etc.)
 \item run1 file path
 \item run2 file path
