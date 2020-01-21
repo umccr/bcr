@@ -2,10 +2,12 @@
 
 export("%>%")
 export(bcbio_outputs)
+export(get_circos)
 export(guess_file_type)
 export(lf)
 export(list_s3_objects)
 export(manta_isec)
+export(manta_isec_stats)
 export(merge_bcbio_outputs)
 export(merge_umccrise_outputs)
 export(read_bcbio_config)

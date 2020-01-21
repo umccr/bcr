@@ -333,3 +333,116 @@ manta_isec <- function(f1, f2, bnd_switch = TRUE) {
               fp = fp,
               fn = fn))
 }
+
+#' Manta Comparison Metrics
+#'
+#' Returns evaluation metrics from comparing two Manta call sets.
+#'
+#' @param mi Output from \code{\link{manta_isec}}.
+#' @param samplename Sample name (used for labelling).
+#' @param flab File name (used for labelling).
+#' @return A single row tibble with the following columns:
+#'   - sample: samplename
+#'   - flabel: flab
+#'   - run1_count: total variants in first file
+#'   - run2_count: total variants in second file
+#'   - TP: in first and second
+#'   - FP: in first but not second
+#'   - FN: in second but not first
+#'   - Recall: TP / (TP + FN)
+#'   - Precision: TP / (TP + FP)
+#'   - Truth: TP + FN
+#'
+#' @examples
+#'
+#' \dontrun{
+#' f1 <- "path/to/run1/manta.vcf.gz"
+#' f2 <- "path/to/run2/manta.vcf.gz"
+#' mi <- manta_isec(f1, f2)
+#' manta_isec_stats(mi, "sampleA", "manta1")
+#' }
+#'
+#' @export
+manta_isec_stats <- function(mi, samplename, flab) {
+  fn <- nrow(mi$fn)
+  fp <- nrow(mi$fp)
+  tp <- mi$tot_vars$run2 - fn
+  truth <- tp + fn
+  recall <- tp / truth
+  precision <- tp / (tp + fp)
+
+  dplyr::tibble(
+    sample = samplename, flabel = flab,
+    run1_count = mi$tot_vars$run1, run2_count = mi$tot_vars$run2,
+    Recall = round(recall, 3), Precision = round(precision, 3), Truth = truth,
+    TP = tp, FP = fp, FN = fn
+  )
+}
+
+#' Get Manta Circos with FP/FN calls
+#'
+#' Returns Circos plot highlighting FP/FN calls from a Manta comparison.
+#'
+#' @param mi Output from \code{\link{manta_isec}}.
+#' @param samplename Sample name (used for labelling).
+#' @param outdir Directory to write circos to.
+#' @param circos_path_export Magical string that exports conda path to circos.
+#' @return Path to circos plot highlighting FP/FN calls from a Manta comparison.
+#'
+#' @examples
+#'
+#' \dontrun{
+#' f1 <- "path/to/run1/manta.vcf.gz"
+#' f2 <- "path/to/run2/manta.vcf.gz"
+#' mi <- manta_isec(f1, f2)
+#' circos_export_path <- "export PATH=/path/to/miniconda/envs/env1/bin:$PATH"
+#' get_circos(mi, "sampleA", "outdir1", circos_export_path)
+#' }
+#'
+#' @export
+get_circos <- function(mi, samplename, outdir, circos_path_export) {
+
+  prep_svs_circos <- function() {
+    sv <- dplyr::bind_rows(list(fp = mi$fp, fn = mi$fn), .id = "fp_or_fn")
+    links_coloured <- sv %>%
+      dplyr::mutate(
+        chrom1 = paste0("hs", .data$chrom1),
+        chrom2 = paste0("hs", .data$chrom2),
+        col = dplyr::case_when(
+          fp_or_fn == "fp" ~ '(0,255,0)',
+          fp_or_fn == "fn" ~ '(255,0,0)',
+          TRUE ~ 'Oops'),
+        pos1b = .data$pos1,
+        pos2b = .data$pos2,
+        col = paste0('color=', col)) %>%
+      dplyr::select(.data$chrom1, .data$pos1, .data$pos1b, .data$chrom2, .data$pos2, .data$pos2b, .data$col)
+
+    return(links_coloured)
+  }
+
+  write_circos_configs <- function() {
+    dir.create(outdir, recursive = TRUE)
+    links <- prep_svs_circos()
+    message(glue::glue("Writing circos links file to '{outdir}'."))
+    readr::write_tsv(links, file.path(outdir, "SAMPLE.link.circos"), col_names = FALSE)
+
+    message(glue::glue("Copying circos templates to '{outdir}'"))
+    file.copy(system.file("templates/circos/circos_sv.conf", package = "pebbles"),
+              file.path(outdir, "circos.conf"), overwrite = TRUE)
+    file.copy(system.file("templates/circos/gaps.txt", package = "pebbles"),
+              outdir, overwrite = TRUE)
+    file.copy(system.file("templates/circos/ideogram.conf", package = "pebbles"),
+              outdir, overwrite = TRUE)
+
+  }
+
+  run_circos <- function() {
+    cmd <- glue::glue("{circos_path_export} && echo $(date) running circos on {samplename} && circos -nosvg -conf {outdir}/circos.conf -outputdir {outdir} -outputfile circos_{samplename}.png")
+    system(cmd, ignore.stdout = TRUE)
+    return(file.path(outdir, glue::glue("circos_{samplename}.png")))
+  }
+
+  write_circos_configs()
+  circos_png <- run_circos()
+  circos_png
+}

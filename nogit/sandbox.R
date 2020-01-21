@@ -28,3 +28,4 @@ f2 <- manta_fnames[2]
 # read_manta_both(f1, f2)
 mi <- manta_isec(f1, f2, bnd_switch = TRUE)
 manta_isec_stats(mi, sample, "manta_bc")
+get_circos(mi, sample, "nogit/circos", "manta")
