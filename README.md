@@ -2,10 +2,10 @@ woofr
 ================
 
 [![Travis build
-status](https://travis-ci.org/umccr/woofr.svg?branch=master)](https://travis-ci.org/umccr/woofr)
+status](https://travis-ci.org/pdiakumis/woofr.svg?branch=master)](https://travis-ci.org/pdiakumis/woofr)
 
 `woofr` is an R package containing R helper functions for
-[woof](https://github.com/umccr/woof).
+[woof](https://github.com/pdiakumis/woof).
 
 You can do the following:
 
@@ -18,13 +18,13 @@ You can do the following:
 ### devtools
 
 You can install the development version of `woofr` from
-[GitHub](https://github.com/umccr/woofr) with:
+[GitHub](https://github.com/pdiakumis/woofr) with:
 
 ``` r
 # install.packages("devtools") # if not pre-installed
-devtools::install_github("umccr/woofr") # master version
-devtools::install_github("umccr/woofr@v1.2.3") # release v1.2.3
-devtools::install_github("umccr/woofr@abcd") # commit abcd
+devtools::install_github("pdiakumis/woofr") # master version
+devtools::install_github("pdiakumis/woofr@v1.2.3") # release v1.2.3
+devtools::install_github("pdiakumis/woofr@abcd") # commit abcd
 ```
 
 ### conda

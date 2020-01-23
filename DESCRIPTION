@@ -1,20 +1,20 @@
 Package: woofr
 Title: Helper R Functions for woof
 Version: 0.1.9
-Description: Helper R Functions for [woof](https://github.com/umccr/woof).
+Description: Helper R Functions for [woof](https://github.com/pdiakumis/woof).
 Authors@R: 
     person(given = "Peter",
            family = "Diakumis",
            role = c("aut", "cre"),
            email = "peterdiakumis@gmail.com",
            comment = c(ORCID = "0000-0002-7502-7545"))
-URL: https://github.com/umccr/woofr
-BugReports: https://github.com/umccr/woofr/issues
+URL: https://github.com/pdiakumis/woofr
+BugReports: https://github.com/pdiakumis/woofr/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 ByteCompile: true
-Remotes: github::umccr/rock, github::pdiakumis/pebbles
+Remotes: github::pdiakumis/rock, github::pdiakumis/pebbles
 Depends:
     R (>= 3.5)
 Imports:
