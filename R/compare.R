@@ -445,6 +445,6 @@ get_circos <- function(mi, samplename, outdir, circos_path_export) {
   }
 
   write_circos_configs()
-  circos_png <- run_circos()
-  circos_png
+  # circos_png <- run_circos()
+  # circos_png
 }
