@@ -4,7 +4,7 @@
 \alias{get_circos}
 \title{Get Manta Circos with FP/FN calls}
 \usage{
-get_circos(mi, samplename, outdir, circos_path_export)
+get_circos(mi, samplename, outdir)
 }
 \arguments{
 \item{mi}{Output from \code{\link{manta_isec}}.}
@@ -12,11 +12,10 @@ get_circos(mi, samplename, outdir, circos_path_export)
 \item{samplename}{Sample name (used for labelling).}
 
 \item{outdir}{Directory to write circos to.}
-
-\item{circos_path_export}{Magical string that exports conda path to circos.}
 }
 \value{
-Path to circos plot highlighting FP/FN calls from a Manta comparison.
+Path to circos plot highlighting FP (green) and FN (red) calls from a
+Manta comparison.
 }
 \description{
 Returns Circos plot highlighting FP/FN calls from a Manta comparison.
@@ -27,8 +26,7 @@ Returns Circos plot highlighting FP/FN calls from a Manta comparison.
 f1 <- "path/to/run1/manta.vcf.gz"
 f2 <- "path/to/run2/manta.vcf.gz"
 mi <- manta_isec(f1, f2)
-circos_export_path <- "export PATH=/path/to/miniconda/envs/env1/bin:$PATH"
-get_circos(mi, "sampleA", "outdir1", circos_export_path)
+get_circos(mi, "sampleA", "outdir1")
 }
 
 }

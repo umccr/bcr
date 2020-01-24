@@ -388,8 +388,8 @@ manta_isec_stats <- function(mi, samplename, flab) {
 #' @param mi Output from \code{\link{manta_isec}}.
 #' @param samplename Sample name (used for labelling).
 #' @param outdir Directory to write circos to.
-#' @param circos_path_export Magical string that exports conda path to circos.
-#' @return Path to circos plot highlighting FP/FN calls from a Manta comparison.
+#' @return Path to circos plot highlighting FP (green) and FN (red) calls from a
+#'   Manta comparison.
 #'
 #' @examples
 #'
@@ -397,12 +397,11 @@ manta_isec_stats <- function(mi, samplename, flab) {
 #' f1 <- "path/to/run1/manta.vcf.gz"
 #' f2 <- "path/to/run2/manta.vcf.gz"
 #' mi <- manta_isec(f1, f2)
-#' circos_export_path <- "export PATH=/path/to/miniconda/envs/env1/bin:$PATH"
-#' get_circos(mi, "sampleA", "outdir1", circos_export_path)
+#' get_circos(mi, "sampleA", "outdir1")
 #' }
 #'
 #' @export
-get_circos <- function(mi, samplename, outdir, circos_path_export) {
+get_circos <- function(mi, samplename, outdir) {
 
   prep_svs_circos <- function() {
     sv <- dplyr::bind_rows(list(fp = mi$fp, fn = mi$fn), .id = "fp_or_fn")
@@ -429,22 +428,27 @@ get_circos <- function(mi, samplename, outdir, circos_path_export) {
     readr::write_tsv(links, file.path(outdir, "SAMPLE.link.circos"), col_names = FALSE)
 
     message(glue::glue("Copying circos templates to '{outdir}'"))
-    file.copy(system.file("templates/circos/circos_sv.conf", package = "pebbles"),
+    file.copy(system.file("templates/circos/hg38/circos_sv.conf", package = "pebbles"),
               file.path(outdir, "circos.conf"), overwrite = TRUE)
-    file.copy(system.file("templates/circos/gaps.txt", package = "pebbles"),
+    file.copy(system.file("templates/circos/hg38/gaps_hg38.txt", package = "pebbles"),
               outdir, overwrite = TRUE)
-    file.copy(system.file("templates/circos/ideogram.conf", package = "pebbles"),
+    file.copy(system.file("templates/circos/hg38/ideogram.conf", package = "pebbles"),
               outdir, overwrite = TRUE)
-
   }
 
   run_circos <- function() {
-    cmd <- glue::glue("{circos_path_export} && echo $(date) running circos on {samplename} && circos -nosvg -conf {outdir}/circos.conf -outputdir {outdir} -outputfile circos_{samplename}.png")
-    system(cmd, ignore.stdout = TRUE)
-    return(file.path(outdir, glue::glue("circos_{samplename}.png")))
+    circos_png <- glue::glue("circos_{samplename}.png")
+    cmd <- glue::glue("echo '$(date) running circos on {samplename}' && circos -nosvg -conf {outdir}/circos.conf -outputdir {outdir} -outputfile {circos_png}")
+
+    if (Sys.which("circos") != "") {
+      system(cmd, ignore.stdout = TRUE)
+      return(circos_png)
+    } else {
+      stop("Can't find 'circos' in your PATH. Exiting.")
+    }
   }
 
   write_circos_configs()
-  # circos_png <- run_circos()
-  # circos_png
+  circos_png <- run_circos()
+  circos_png
 }
