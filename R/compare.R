@@ -234,21 +234,28 @@ read_bcbio_configs <- function(conf1, conf2) {
 #' @examples
 #'
 #' x <- system.file("extdata", "snv/count_vars.txt", package = "woofr")
-#' read_count_file(x)
+#' read_snv_count_file(x)
 #'
 #' @export
-read_count_file <- function(x) {
+read_snv_count_file <- function(x) {
+  column_nms <- c("sample", "flabel", "count")
   if (!file.exists(x)) {
-    return(NA_integer_)
+    # return tibble of NAs
+    res <- rep(NA, length(column_nms)) %>%
+      purrr::set_names(column_nms) %>%
+      as.list() %>%
+      dplyr::as_tibble()
+
+    return(res)
   }
-  res <- readr::read_lines(x) %>% as.integer()
-  stopifnot(res >= 0)
+  res <- readr::read_tsv(x, col_types = "cci")
+  stopifnot(names(res) == column_nms)
   res
 }
 
-#' Read eval file output by woof
+#' Read SNV eval file output by woof
 #'
-#' Reads eval file output by woof
+#' Reads SNV eval file output by woof
 #'
 #' @param x Path to file with eval results
 #' @return A tibble with a single row of evaluation metrics
@@ -260,7 +267,8 @@ read_count_file <- function(x) {
 #'
 #' @export
 read_snv_eval_file <- function(x) {
-  column_nms <- c("SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN", "SNP_Recall", "SNP_Precision",
+  column_nms <- c("sample", "flabel",
+                  "SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN", "SNP_Recall", "SNP_Precision",
                   "SNP_f1", "SNP_f2", "SNP_f3", "IND_Truth", "IND_TP", "IND_FP",
                   "IND_FN", "IND_Recall", "IND_Precision", "IND_f1", "IND_f2", "IND_f3")
   if (!file.exists(x)) {
@@ -272,7 +280,7 @@ read_snv_eval_file <- function(x) {
 
     return(res)
   }
-  res <- readr::read_tsv(x, col_types = readr::cols(.default = "d"))
+  res <- readr::read_tsv(x, col_types = readr::cols(.default = "d", sample = "c", flabel = "c"))
   stopifnot(names(res) == column_nms)
   res
 }
@@ -291,7 +299,7 @@ read_snv_eval_file <- function(x) {
 #'
 #' @export
 read_sv_fpfn_file <- function(x) {
-  column_nms <- c("FP_or_FN", "chrom1","pos1", "chrom2", "pos2", "svtype")
+  column_nms <- c("FP_or_FN", "sample", "flabel", "chrom1","pos1", "chrom2", "pos2", "svtype")
   if (!file.exists(x)) {
     res <- rep(NA, length(column_nms)) %>%
       purrr::set_names(column_nms) %>%
@@ -299,7 +307,7 @@ read_sv_fpfn_file <- function(x) {
       dplyr::as_tibble()
     return(res)
   }
-  res <- readr::read_tsv(x, col_types = "ccicic")
+  res <- readr::read_tsv(x, col_types = "ccccicic")
   stopifnot(names(res) == column_nms)
   res
 }
@@ -339,6 +347,8 @@ read_sv_eval_file <- function(x) {
 #'
 #' @param f1 Path to first Manta file
 #' @param f2 Path to second ('truthset') Manta file
+#' @param samplename Sample name (used for labelling).
+#' @param flab File name (used for labelling).
 #' @param bnd_switch Logical. Switch BND pairs for more matches (default: TRUE).
 #' @return A list with the following elements:
 #'   - tot_vars: total variants for file1 and file2
@@ -354,7 +364,7 @@ read_sv_eval_file <- function(x) {
 #' }
 #'
 #' @export
-manta_isec <- function(f1, f2, bnd_switch = TRUE) {
+manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
 
   read_manta_both <- function(f1, f2) {
     vcf1 <- rock::prep_manta_vcf(f1, filter_pass = TRUE)$sv
@@ -386,6 +396,13 @@ manta_isec <- function(f1, f2, bnd_switch = TRUE) {
     fp <- fp_new
     fn <- fn_new
   }
+
+  fp <- fp %>%
+    dplyr::mutate(sample = samplename, flabel = flab) %>%
+    dplyr::select(.data$sample, .data$flabel, dplyr::everything())
+  fn <- fn %>%
+    dplyr::mutate(sample = samplename, flabel = flab) %>%
+    dplyr::select(.data$sample, .data$flabel, dplyr::everything())
 
   return(list(tot_vars = tot_vars,
               fp = fp,

@@ -2,7 +2,7 @@
 % Please edit documentation in R/compare.R
 \name{read_snv_eval_file}
 \alias{read_snv_eval_file}
-\title{Read eval file output by woof}
+\title{Read SNV eval file output by woof}
 \usage{
 read_snv_eval_file(x)
 }
@@ -13,7 +13,7 @@ read_snv_eval_file(x)
 A tibble with a single row of evaluation metrics
 }
 \description{
-Reads eval file output by woof
+Reads SNV eval file output by woof
 }
 \examples{
 

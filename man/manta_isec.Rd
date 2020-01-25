@@ -4,12 +4,16 @@
 \alias{manta_isec}
 \title{Intersect two Manta VCF files}
 \usage{
-manta_isec(f1, f2, bnd_switch = TRUE)
+manta_isec(f1, f2, samplename, flab, bnd_switch = TRUE)
 }
 \arguments{
 \item{f1}{Path to first Manta file}
 
 \item{f2}{Path to second ('truthset') Manta file}
+
+\item{samplename}{Sample name (used for labelling).}
+
+\item{flab}{File name (used for labelling).}
 
 \item{bnd_switch}{Logical. Switch BND pairs for more matches (default: TRUE).}
 }
