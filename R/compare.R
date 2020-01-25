@@ -233,7 +233,7 @@ read_bcbio_configs <- function(conf1, conf2) {
 #'
 #' @examples
 #'
-#' x <- system.file("extdata", "count_vars.txt", package = "woofr")
+#' x <- system.file("extdata", "snv/count_vars.txt", package = "woofr")
 #' read_count_file(x)
 #'
 #' @export
@@ -255,11 +255,11 @@ read_count_file <- function(x) {
 #'
 #' @examples
 #'
-#' x <- system.file("extdata", "eval_stats.tsv", package = "woofr")
-#' read_eval_file(x)
+#' x <- system.file("extdata", "snv/eval_stats.tsv", package = "woofr")
+#' read_snv_eval_file(x)
 #'
 #' @export
-read_eval_file <- function(x) {
+read_snv_eval_file <- function(x) {
   column_nms <- c("SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN", "SNP_Recall", "SNP_Precision",
                   "SNP_f1", "SNP_f2", "SNP_f3", "IND_Truth", "IND_TP", "IND_FP",
                   "IND_FN", "IND_Recall", "IND_Precision", "IND_f1", "IND_f2", "IND_f3")
@@ -276,6 +276,62 @@ read_eval_file <- function(x) {
   stopifnot(names(res) == column_nms)
   res
 }
+
+#' Read SV FP/FN file output by woof
+#'
+#' Reads SV FP/FN file output by woof
+#'
+#' @param x Path to file with FP/FN variants
+#' @return A tibble containing FP/FN SV variants
+#'
+#' @examples
+#'
+#' x <- system.file("extdata", "sv/fpfn.tsv", package = "woofr")
+#' read_sv_fpfn_file(x)
+#'
+#' @export
+read_sv_fpfn_file <- function(x) {
+  column_nms <- c("FP_or_FN", "chrom1","pos1", "chrom2", "pos2", "svtype")
+  if (!file.exists(x)) {
+    res <- rep(NA, length(column_nms)) %>%
+      purrr::set_names(column_nms) %>%
+      as.list() %>%
+      dplyr::as_tibble()
+    return(res)
+  }
+  res <- readr::read_tsv(x, col_types = "ccicic")
+  stopifnot(names(res) == column_nms)
+  res
+}
+
+#' Read SV eval metrics file output by woof
+#'
+#' Reads SV eval metrics file output by woof
+#'
+#' @param x Path to file with SV evaluation metrics
+#' @return A tibble with a single row of evaluation metrics
+#'
+#' @examples
+#'
+#' x <- system.file("extdata", "sv/eval_metrics.tsv", package = "woofr")
+#' read_sv_eval_file(x)
+#'
+#' @export
+read_sv_eval_file <- function(x) {
+  column_nms <- c("sample", "flabel", "run1_count", "run2_count", "Recall",
+                  "Precision", "Truth", "TP", "FP", "FN")
+  if (!file.exists(x)) {
+    res <- rep(NA, length(column_nms)) %>%
+      purrr::set_names(column_nms) %>%
+      as.list() %>%
+      dplyr::as_tibble()
+    return(res)
+  }
+  res <- readr::read_tsv(x, col_types = "cciiddiiii")
+  stopifnot(names(res) == column_nms)
+  res
+}
+
 
 #' Intersect two Manta VCF files
 #'

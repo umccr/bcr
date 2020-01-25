@@ -1,0 +1,2 @@
+sample	flabel	run1_count	run2_count	Recall	Precision	Truth	TP	FP	FN
+um1	manta_bc	10205	9879	0.746	0.722	9879	7369	2836	2510

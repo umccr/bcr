@@ -17,7 +17,7 @@ Reads SNV count file output by woof
 }
 \examples{
 
-x <- system.file("extdata", "count_vars.txt", package = "woofr")
+x <- system.file("extdata", "snv/count_vars.txt", package = "woofr")
 read_count_file(x)
 
 }
