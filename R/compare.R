@@ -103,7 +103,7 @@ umccrise_outputs <- function(d) {
   stopifnot(dir.exists(d))
   # grab PURPLE's purple.gene.cnv file too
   vcfs <- list.files(d, pattern = "\\.vcf.gz$", recursive = TRUE, full.names = TRUE)
-  purple_cnv <- list.files(d, pattern = "purple\\.gene", recursive = TRUE, full.names = TRUE)
+  purple_cnv <- list.files(d, pattern = "purple.*gene", recursive = TRUE, full.names = TRUE)
   stopifnot(length(vcfs) > 0, length(purple_cnv) <= 1)
   all_files <- c(vcfs, purple_cnv)
 
@@ -115,7 +115,7 @@ umccrise_outputs <- function(d) {
         grepl("-somatic-ensemble-PASS$", .data$bname) ~ "pcgr_um",
         grepl("-normal-ensemble-predispose_genes$", .data$bname) ~ "cpsr_um",
         grepl("manta$", .data$bname) ~ "manta_um",
-        grepl("purple\\.gene", .data$bname) ~ "purple-gene_um",
+        grepl("purple.*gene", .data$bname) ~ "purple-gene_um",
         TRUE ~ "IGNORE_ME"),
       vartype = dplyr::case_when(
         flabel == "IGNORE_ME" ~ "IGNORE_ME",
@@ -525,4 +525,37 @@ get_circos <- function(mi, samplename, outdir) {
   write_circos_configs()
   circos_png <- run_circos()
   circos_png
+}
+
+
+#' Read PURPLE gene segments
+#'
+#' Reads the gene.cnv file output by PURPLE
+#'
+#' @param x Path to PURPLE `gene.cnv` (or `cnv.gene.tsv`) file.
+#' @return A tibble with the main columns of interest from the PURPLE `gene.cnv` file i.e.
+#'   chrom, start, end, gene, min_cn and max_cn.
+#'
+#' @examples
+#'
+#' x <- system.file("extdata", "cnv/sample_A.purple.gene.cnv", package = "woofr")
+#' y <- system.file("extdata", "cnv/sample_B.purple.cnv.gene.tsv", package = "woofr")
+#' read_purple_gene_file(x)
+#' read_purple_gene_file(y)
+#'
+#' @export
+read_purple_gene_file <- function(x) {
+  column_nms <- c("chromosome", "start", "end", "gene", "mincopynumber", "maxcopynumber")
+  d <- readr::read_tsv(x, col_types = readr::cols(.default = "c")) %>%
+    dplyr::select(1:6)
+  names(d) <- tolower(names(d))
+  stopifnot(names(d) == column_nms)
+  d %>%
+    dplyr::mutate(
+      start = as.integer(.data$start),
+      end = as.integer(.data$end),
+      min_cn = round(as.numeric(.data$mincopynumber), 1),
+      max_cn = round(as.numeric(.data$maxcopynumber), 1)) %>%
+    dplyr::select(
+      chrom = .data$chromosome, .data$start, .data$end,.data$gene, .data$min_cn, .data$max_cn)
 }
