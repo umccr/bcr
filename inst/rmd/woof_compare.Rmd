@@ -6,7 +6,7 @@ output:
     theme: simplex
     toc: true
     toc_float: false
-    toc_depth: 5
+    toc_depth: 3
     code_download: true
     code_folding: hide
   rmdformats::material:
@@ -73,8 +73,8 @@ suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(woofr))
 ```
 
-Results
--------
+## Results
+
 
 ```{r setup_vars}
 woof_final <- params$woof_final
@@ -102,22 +102,25 @@ run_sv <- TRUE
 if (length(samples) == 0) {
   run_report <- FALSE
   stop(glue("Report won't be generated, since no sample folders were ",
-            "detected in:\n{woof_final}"))}
+            "detected in:\n{woof_final}"))
+}
 if (length(flabels_snv) == 0) {
   run_snv <- FALSE
   tmp <- paste(flabels_snv_dir, collapse = "\n")
   warning(glue("No SNV results are shown, since no SNV folders ",
-               "detected in:\n{tmp}"))}
+               "detected in:\n{tmp}"))
+}
 if (length(flabels_sv) == 0) {
   run_sv <- FALSE
   tmp <- paste(flabels_sv_dir, collapse = "\n")
   warning(glue("No SV results are shown, since no SV folders ",
-               "detected in:\n{tmp}"))}
+               "detected in:\n{tmp}"))
+}
 ```
 
-### SNVs/Indels
+`r if (run_snv) { c("### SNVs/Indels {.tabset .tabset-fade}") }`
 
-```{r funcs_snvs}
+```{r funcs_snvs, eval=run_snv}
 # Get file labels from unique woof/final/<sample>/snv_eval/<flab>/
 read_snv_count_files <- function(woof_final, sample, flabel, pass_or_all) {
 
@@ -154,14 +157,14 @@ get_snv_stats_sample <- function(sample, flab) {
 }
 ```
 
-```{r analysis_snvs}
+```{r analysis_snvs, eval=run_snv}
 snv_res <- purrr::map(samples, ~ get_snv_stats_sample(.x, flabels_snv)) %>%
   dplyr::bind_rows() %>%
   dplyr::arrange(SNP_Recall, SNP_Precision, sample, flabel) %>%
   dplyr::mutate(id = dplyr::row_number())
 ```
 
-```{r tab_descr_snvs}
+```{r tab_descr_snvs, eval=run_snv}
 snv_cap <- dplyr::tribble(
   ~Column,    ~Description,
   "run1",     run1,
@@ -186,11 +189,11 @@ snv_cap <- htmltools::tags$caption(
   htmltools::div(paste(snv_cap[12:length(snv_cap)], collapse = "; ")))
 ```
 
-#### Comparison Table
+`r if (run_snv) { c("#### Comparison Table") }`
 
-```{r eval_tab_snvs}
+```{r eval_tab_snvs, eval=run_snv}
 
-snv_tab_params <- list(
+snv_tpar <- list(
   # scrollY should be 35px per row, with max of 580px.
   scroll_y = 10 + min(nrow(snv_res) * 35, 570),
   bgsize = "90% 90%",
@@ -213,18 +216,18 @@ snv_res %>%
     rownames = FALSE, caption = snv_cap, class = "cell-border display compact",
     filter = list(position = "top", clear = FALSE, plain = FALSE),
     extensions = c("Scroller", "KeyTable"),
-    options = list(scroller = TRUE, scrollY = snv_tab_params$scroll_y, scrollX = TRUE,
+    options = list(scroller = TRUE, scrollY = snv_tpar$scroll_y, scrollX = TRUE,
                    autoWidth = TRUE, keys = TRUE, dom = 'Blfrtip')) %>%
   DT::formatStyle(
     paste0(c("SNP_", "IND_"), rep(c("Rec", "Prec", "f1"), each = 2)),
-    background = styleColorBar(snv_tab_params$bar_range, color = snv_tab_params$bar_colour),
-    backgroundSize = snv_tab_params$bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center') %>%
-  DT::formatCurrency(snv_tab_params$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
+    background = styleColorBar(snv_tpar$bar_range, color = snv_tpar$bar_colour),
+    backgroundSize = snv_tpar$bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center') %>%
+  DT::formatCurrency(snv_tpar$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
 ```
 
-### Structural Variants
+`r if (run_sv) { c("### Structural Variants {.tabset .tabset-fade}") }`
 
-```{r funcs_svs}
+```{r funcs_svs, eval=run_sv}
 read_sv_fpfn_files_sample <- function(sample) {
   purrr::map(flabels_sv, function(flab) {
     file.path(woof_final, sample, "sv_eval", flab, "fpfn.tsv") %>%
@@ -256,7 +259,7 @@ read_circos_sample <- function(sample) {
 }
 ```
 
-```{r analysis_svs}
+```{r analysis_svs, eval=run_sv}
 sv_eval_res <- purrr::map(samples, read_sv_eval_files_sample) %>%
   dplyr::bind_rows() %>%
   dplyr::arrange(Recall, Precision, sample, flabel)
@@ -271,7 +274,7 @@ sv_circos_res <- purrr::map(samples, read_circos_sample) %>%
   dplyr::arrange(desc(FP), desc(FN), sample, flabel)
 ```
 
-```{r tab-descr-svs}
+```{r tab_descr_svs, eval=run_sv}
 sv_cap <- dplyr::tribble(
   ~Column,    ~Description,
   "run1",     run1,
@@ -289,11 +292,10 @@ sv_cap <- htmltools::tags$caption(
   htmltools::div(paste(sv_cap[5:length(sv_cap)], collapse = "; ")))
 ```
 
+`r if (run_sv) { c("#### Comparison Table") }`
 
-#### Comparison Table
-
-```{r eval_tab_svs}
-sv_tab_params <- list(
+```{r eval_tab_svs, eval=run_sv}
+sv_tpar <- list(
   # scrollY should be 35px per row, with max of 580px.
   scroll_y = 10 + min(nrow(sv_eval_res) * 35, 570),
   bgsize = "90% 90%",
@@ -308,19 +310,19 @@ sv_eval_res %>%
     rownames = FALSE, caption = sv_cap, class = "cell-border display compact",
     filter = list(position = "top", clear = FALSE, plain = FALSE),
     extensions = c("Scroller", "KeyTable"),
-    options = list(scroller = TRUE, scrollX = TRUE, scrollY = sv_tab_params$scroll_y)) %>%
+    options = list(scroller = TRUE, scrollX = TRUE, scrollY = sv_tpar$scroll_y)) %>%
   DT::formatStyle(
     c("Recall", "Precision"),
-    background = DT::styleColorBar(sv_tab_params$bar_range, color = sv_tab_params$bar_colour),
-    backgroundSize = sv_tab_params$bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center') %>%
-  DT::formatCurrency(sv_tab_params$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
+    background = DT::styleColorBar(sv_tpar$bar_range, color = sv_tpar$bar_colour),
+    backgroundSize = sv_tpar$bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center') %>%
+  DT::formatCurrency(sv_tpar$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
 ```
 
-#### FP/FN Table
-Showing FP and FN SVs from above:
+`r if (run_sv) { c("#### FP/FN Table") }`
+`r if (run_sv) { c("Showing FP and FN SVs") }`
 
-```{r fpfn_sv_tab}
-sv_fpfn_tab_params <- list(
+```{r fpfn_sv_tab, eval=run_sv}
+sv_fpfn_tpar <- list(
   # scrollY should be 35px per row, with max of 580px.
   scroll_y = 10 + min(nrow(sv_fpfn_res) * 35, 570),
   bgsize = "90% 90%",
@@ -335,21 +337,19 @@ sv_fpfn_res %>%
     filter = list(position = "top", clear = FALSE, plain = FALSE),
     extensions = c("Scroller", "KeyTable"),
     options = list(scroller = TRUE, scrollX = TRUE,
-                   scrollY = sv_fpfn_tab_params$scroll_y)) %>%
+                   scrollY = sv_fpfn_tpar$scroll_y)) %>%
   DT::formatStyle("FP_or_FN",
                   backgroundColor = DT::styleEqual(c("fp", "fn"),
                                                c("#66FF66", "#FF6666"))) %>%
-  DT::formatCurrency(sv_fpfn_tab_params$big_mark_cols,
+  DT::formatCurrency(sv_fpfn_tpar$big_mark_cols,
                  currency = "", interval = 3, mark = ",", digits = 0)
 ```
 
+`r if (run_sv) { c("#### Circos Plots {.tabset .tabset-fade}") }`
+`r if (run_sv) { c("<span style='color:green'>Green</span> = False Positives;") }`
+`r if (run_sv) { c("<span style='color:red'>Red</span> = False Negatives") }`
 
-#### Circos Plots {.tabset .tabset-fade}
-
-* <span style="color:green">Green</span> = False Positives
-* <span style="color:red">Red</span> = False Negatives
-
-```{r circos_display, fig.width=5, fig.height=5, results="asis"}
+```{r circos_display, fig.width=5, fig.height=5, results="asis", eval=run_sv}
 x <- sv_circos_res %>%
   dplyr::filter(FP > 0 | FN > 0)
 for (i in seq_len(nrow(x))) {
@@ -359,9 +359,8 @@ for (i in seq_len(nrow(x))) {
 }
 ```
 
+## Methods {.tabset .tabset-fade}
 
-Methods
--------
 Here we're comparing the output from two bcbio runs:
 
 - __Run1__: `r run1`
@@ -380,7 +379,7 @@ Here we're comparing the output from two bcbio runs:
 - run `eval_vcf` function in <https://github.com/umccr/vcf_stuff/>
   to generate a summary table with evaluation statistics
 
-#### Diagram
+### Diagram
 
 ```{r graph1, fig.height=7}
 set.seed(42)
@@ -444,3 +443,18 @@ create_graph(nodes_df = ndf, edges_df = edf) %>%
 
 - check if gene number and coordinates are identical between runs
 - check which genes have a difference in Min/Max copy number greater than 0.5
+
+## Addendum {.tabset .tabset-fade}
+
+### Report Inputs
+
+```{r report_inputs}
+dplyr::tibble(key = names(params), value = unlist(params)) %>%
+  knitr::kable(format = "html") %>%
+  kableExtra::kable_styling(full_width = FALSE, position = "left") %>%
+  kableExtra::column_spec(1, bold = TRUE) %>%
+  kableExtra::scroll_box(height = "200px")
+```
+
+
+<p>&nbsp;</p>
