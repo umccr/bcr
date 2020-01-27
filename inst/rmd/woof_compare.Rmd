@@ -78,19 +78,20 @@ suppressPackageStartupMessages(library(woofr))
 
 ```{r setup_vars}
 woof_final <- params$woof_final
+sample_dir <- file.path(woof_final, "samples")
 run1 <- params$run1_nm
 run2 <- params$run2_nm
 stopifnot(dir.exists(woof_final))
 stopifnot(nchar(run1) >= 1, nchar(run2) >= 2)
 
-samples <- list.dirs(woof_final, recursive = FALSE, full.names = FALSE)
+samples <- list.dirs(sample_dir, recursive = FALSE, full.names = FALSE)
 
-flabels_snv_dir <- file.path(woof_final, samples, "snv_eval")
+flabels_snv_dir <- file.path(sample_dir, samples, "snv_eval")
 flabels_snv <- flabels_snv_dir %>%
   list.dirs(recursive = FALSE, full.names = FALSE) %>%
   unique()
 
-flabels_sv_dir <- file.path(woof_final, samples, "sv_eval")
+flabels_sv_dir <- file.path(sample_dir, samples, "sv_eval")
 flabels_sv <- flabels_sv_dir %>%
   list.dirs(recursive = FALSE, full.names = FALSE) %>%
   unique()
@@ -124,22 +125,32 @@ if (length(flabels_sv) == 0) {
 # Get file labels from unique woof/final/<sample>/snv_eval/<flab>/
 read_snv_count_files <- function(woof_final, sample, flabel, pass_or_all) {
 
-  c1 <- file.path(woof_final, sample, "snv_counts", "f1", flabel, pass_or_all, "count_vars.txt") %>%
+  c1 <- file.path(sample_dir, sample, "snv_counts", "f1", flabel, pass_or_all, "count_vars.txt") %>%
     woofr::read_snv_count_file() %>%
     dplyr::mutate(subset = pass_or_all, run = "run1")
-  c2 <- file.path(woof_final, sample, "snv_counts", "f2", flabel, pass_or_all, "count_vars.txt") %>%
+  c2 <- file.path(sample_dir, sample, "snv_counts", "f2", flabel, pass_or_all, "count_vars.txt") %>%
     woofr::read_snv_count_file() %>%
     dplyr::mutate(subset = pass_or_all, run = "run2")
 
-  dplyr::bind_rows(c1, c2) %>%
-    tidyr::pivot_wider(names_from = run, values_from = count, names_prefix = "tot_")
+  d <- dplyr::bind_rows(c1, c2)
+
+  if (all(is.na(d$flabel))) {
+    # return tibble of NAs
+    column_nms <- c("sample", "flabel", "subset", "tot_run1", "tot_run2")
+    res <- rep(NA, length(column_nms)) %>%
+      purrr::set_names(column_nms) %>%
+      as.list() %>%
+      dplyr::as_tibble()
+    return(res)
+  }
+  tidyr::pivot_wider(d, names_from = run, values_from = count, names_prefix = "tot_")
 }
 
 get_snv_stats <- function(woof_final, sample, flabel, pass_or_all) {
   dplyr::left_join(
     read_snv_count_files(woof_final, sample, flabel, pass_or_all),
-    woofr::read_snv_eval_file(file.path(woof_final, sample, "snv_eval", flabel, pass_or_all, "eval_stats.tsv")),
-    by = c("sample", "flabel"))
+    woofr::read_snv_eval_file(file.path(sample_dir, sample, "snv_eval", flabel, pass_or_all, "eval_stats.tsv")),
+    by = c("sample", "flabel", "subset"))
 }
 
 get_snv_stats_sample <- function(sample, flab) {
@@ -160,6 +171,7 @@ get_snv_stats_sample <- function(sample, flab) {
 ```{r analysis_snvs, eval=run_snv}
 snv_res <- purrr::map(samples, ~ get_snv_stats_sample(.x, flabels_snv)) %>%
   dplyr::bind_rows() %>%
+  dplyr::filter_all(dplyr::any_vars(!is.na(.))) %>% # keep rows with at least one non-NA
   dplyr::arrange(SNP_Recall, SNP_Precision, sample, flabel) %>%
   dplyr::mutate(id = dplyr::row_number())
 ```
@@ -217,7 +229,7 @@ snv_res %>%
     filter = list(position = "top", clear = FALSE, plain = FALSE),
     extensions = c("Scroller", "KeyTable"),
     options = list(scroller = TRUE, scrollY = snv_tpar$scroll_y, scrollX = TRUE,
-                   autoWidth = TRUE, keys = TRUE, dom = 'Blfrtip')) %>%
+                   autoWidth = TRUE, keys = TRUE, dom = 'lfrtip')) %>%
   DT::formatStyle(
     paste0(c("SNP_", "IND_"), rep(c("Rec", "Prec", "f1"), each = 2)),
     background = styleColorBar(snv_tpar$bar_range, color = snv_tpar$bar_colour),
@@ -230,7 +242,7 @@ snv_res %>%
 ```{r funcs_svs, eval=run_sv}
 read_sv_fpfn_files_sample <- function(sample) {
   purrr::map(flabels_sv, function(flab) {
-    file.path(woof_final, sample, "sv_eval", flab, "fpfn.tsv") %>%
+    file.path(sample_dir, sample, "sv_eval", flab, "fpfn.tsv") %>%
       woofr::read_sv_fpfn_file()
   }) %>%
     dplyr::bind_rows()
@@ -239,7 +251,7 @@ read_sv_fpfn_files_sample <- function(sample) {
 read_sv_eval_files_sample <- function(sample) {
 
   purrr::map(flabels_sv, function(flab) {
-    file.path(woof_final, sample, "sv_eval", flab, "eval_metrics.tsv") %>%
+    file.path(sample_dir, sample, "sv_eval", flab, "eval_metrics.tsv") %>%
       woofr::read_sv_eval_file()
   }) %>%
     dplyr::bind_rows()
@@ -247,8 +259,7 @@ read_sv_eval_files_sample <- function(sample) {
 
 read_circos_sample <- function(sample) {
   purrr::map(flabels_sv, function(flab) {
-    circos <- file.path(woof_final, sample, "sv_eval", flab,
-                        glue("circos_{sample}.png"))
+    circos <- file.path(sample_dir, sample, "sv_eval", flab, glue("circos_{sample}.png"))
     if (file.exists(circos)) {
       tibble::tibble(sample = sample, flabel = flab, circos = circos)
     } else {
@@ -262,9 +273,11 @@ read_circos_sample <- function(sample) {
 ```{r analysis_svs, eval=run_sv}
 sv_eval_res <- purrr::map(samples, read_sv_eval_files_sample) %>%
   dplyr::bind_rows() %>%
+  dplyr::filter_all(dplyr::any_vars(!is.na(.))) %>% # keep rows with at least one non-NA
   dplyr::arrange(Recall, Precision, sample, flabel)
 sv_fpfn_res <- purrr::map(samples, read_sv_fpfn_files_sample) %>%
-  dplyr::bind_rows()
+  dplyr::bind_rows() %>%
+  dplyr::filter_all(dplyr::any_vars(!is.na(.))) # keep rows with at least one non-NA
 sv_circos_res <- purrr::map(samples, read_circos_sample) %>%
   dplyr::bind_rows() %>%
   dplyr::left_join(sv_eval_res, by = c("sample", "flabel")) %>%
@@ -446,6 +459,34 @@ create_graph(nodes_df = ndf, edges_df = edf) %>%
 
 ## Addendum {.tabset .tabset-fade}
 
+### Conda Pkgs Main
+
+```{r conda_list_main, warning=FALSE}
+conda_pkgs <-
+  readr::read_table2(
+    file.path(woof_final, "conda", "conda_pkg_list.txt"),
+    col_names = c("name", "version", "build", "channel", "env"),
+    col_types = "ccccc") %>%
+  dplyr::mutate(channel = ifelse(channel == "woof", NA_character_, channel),
+                env = ifelse(is.na(env), "woof", env)) %>%
+  dplyr::arrange(name)
+main_pkgs <- c(
+  "^htslib$", "^ngs",
+  "pandoc", "^python$",
+  "^r-base$", "cromwell",
+  "bcftools", "samtools",
+  "^woof$", "^r-rock$", "^r-woofr$") %>%
+  paste(collapse = "|")
+conda_pkgs %>%
+  dplyr::filter(grepl(main_pkgs, name)) %>%
+  dplyr::select(-env) %>%
+  dplyr::arrange(desc(name)) %>%
+  knitr::kable(format = "html") %>%
+  kableExtra::kable_styling(full_width = TRUE, position = "left") %>%
+  kableExtra::column_spec(1, bold = TRUE) %>%
+  kableExtra::scroll_box(height = "300px")
+```
+
 ### Report Inputs
 
 ```{r report_inputs}
@@ -456,5 +497,18 @@ dplyr::tibble(key = names(params), value = unlist(params)) %>%
   kableExtra::scroll_box(height = "200px")
 ```
 
+### Conda Pkgs All
+
+```{r conda_list_all}
+conda_pkgs %>%
+  dplyr::select(-env) %>%
+  DT::datatable(filter = list(position = "top", clear = FALSE, plain = TRUE),
+                rownames = FALSE, extensions = c("Scroller", "Buttons"),
+                options = list(scroller = TRUE, scrollX = TRUE, scrollY = 400,
+                               dom = 'lfrtip'))
+```
+
+
+***
 
 <p>&nbsp;</p>

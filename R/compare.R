@@ -267,7 +267,7 @@ read_snv_count_file <- function(x) {
 #'
 #' @export
 read_snv_eval_file <- function(x) {
-  column_nms <- c("sample", "flabel",
+  column_nms <- c("sample", "flabel", "subset",
                   "SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN", "SNP_Recall", "SNP_Precision",
                   "SNP_f1", "SNP_f2", "SNP_f3", "IND_Truth", "IND_TP", "IND_FP",
                   "IND_FN", "IND_Recall", "IND_Precision", "IND_f1", "IND_f2", "IND_f3")
@@ -280,7 +280,8 @@ read_snv_eval_file <- function(x) {
 
     return(res)
   }
-  res <- readr::read_tsv(x, col_types = readr::cols(.default = "d", sample = "c", flabel = "c"))
+  res <- readr::read_tsv(x, col_types = readr::cols(
+    .default = "d", sample = "c", flabel = "c", subset = "c"))
   stopifnot(names(res) == column_nms)
   res
 }
