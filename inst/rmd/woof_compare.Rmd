@@ -76,40 +76,74 @@ suppressPackageStartupMessages(library(woofr))
 Results
 -------
 
-### SNVs/Indels
-
-```{r funcs_snvs}
+```{r setup_vars}
 woof_final <- params$woof_final
+run1 <- params$run1_nm
+run2 <- params$run2_nm
 stopifnot(dir.exists(woof_final))
+stopifnot(nchar(run1) >= 1, nchar(run2) >= 2)
 
 samples <- list.dirs(woof_final, recursive = FALSE, full.names = FALSE)
 
-# Get file labels from unique woof/final/<sample>/vcf_eval/<vcf_type>/
-flabels_snv <-
-  file.path(woof_final, samples, "vcf_eval") %>%
+flabels_snv_dir <- file.path(woof_final, samples, "snv_eval")
+flabels_snv <- flabels_snv_dir %>%
   list.dirs(recursive = FALSE, full.names = FALSE) %>%
   unique()
 
-read_count_files <- function(woof_final, sample, flabel, pass_or_all) {
+flabels_sv_dir <- file.path(woof_final, samples, "sv_eval")
+flabels_sv <- flabels_sv_dir %>%
+  list.dirs(recursive = FALSE, full.names = FALSE) %>%
+  unique()
 
-  c1 <- file.path(woof_final, sample, "vcf_counts", "f1", flabel, pass_or_all, "count_vars.txt") %>% woofr::read_count_file()
-  c2 <- file.path(woof_final, sample, "vcf_counts", "f2", flabel, pass_or_all, "count_vars.txt") %>% woofr::read_count_file()
+run_report <- TRUE
+run_snv <- TRUE
+run_sv <- TRUE
 
-  # keeping sample/snv_label/subset in row
-  dplyr::tibble(sample = sample, flabel = flabel, subset = pass_or_all, run1_count = c1, run2_count = c2)
+if (length(samples) == 0) {
+  run_report <- FALSE
+  stop(glue("Report won't be generated, since no sample folders were ",
+            "detected in:\n{woof_final}"))}
+if (length(flabels_snv) == 0) {
+  run_snv <- FALSE
+  tmp <- paste(flabels_snv_dir, collapse = "\n")
+  warning(glue("No SNV results are shown, since no SNV folders ",
+               "detected in:\n{tmp}"))}
+if (length(flabels_sv) == 0) {
+  run_sv <- FALSE
+  tmp <- paste(flabels_sv_dir, collapse = "\n")
+  warning(glue("No SV results are shown, since no SV folders ",
+               "detected in:\n{tmp}"))}
+```
+
+### SNVs/Indels
+
+```{r funcs_snvs}
+# Get file labels from unique woof/final/<sample>/snv_eval/<flab>/
+read_snv_count_files <- function(woof_final, sample, flabel, pass_or_all) {
+
+  c1 <- file.path(woof_final, sample, "snv_counts", "f1", flabel, pass_or_all, "count_vars.txt") %>%
+    woofr::read_snv_count_file() %>%
+    dplyr::mutate(subset = pass_or_all, run = "run1")
+  c2 <- file.path(woof_final, sample, "snv_counts", "f2", flabel, pass_or_all, "count_vars.txt") %>%
+    woofr::read_snv_count_file() %>%
+    dplyr::mutate(subset = pass_or_all, run = "run2")
+
+  dplyr::bind_rows(c1, c2) %>%
+    tidyr::pivot_wider(names_from = run, values_from = count, names_prefix = "tot_")
 }
 
-get_stats <- function(woof_final, sample, flabel, pass_or_all) {
-  dplyr::bind_cols(
-    read_count_files(woof_final, sample, flabel, pass_or_all),
-    woofr::read_eval_file(file.path(woof_final, sample, "vcf_eval", flabel, pass_or_all, "eval_stats.tsv")))
+get_snv_stats <- function(woof_final, sample, flabel, pass_or_all) {
+  dplyr::left_join(
+    read_snv_count_files(woof_final, sample, flabel, pass_or_all),
+    woofr::read_snv_eval_file(file.path(woof_final, sample, "snv_eval", flabel, pass_or_all, "eval_stats.tsv")),
+    by = c("sample", "flabel"))
 }
 
-get_stats_sample <- function(sample, flab) {
+get_snv_stats_sample <- function(sample, flab) {
 
   get_stats_sample_subset <- function(sample, pass_or_all) {
     flab %>%
-      purrr::map(~ get_stats(woof_final, sample, .x, pass_or_all)) %>%
+      purrr::map(~ get_snv_stats(woof_final, sample, .x, pass_or_all)) %>%
       dplyr::bind_rows()
   }
 
@@ -121,16 +155,17 @@ get_stats_sample <- function(sample, flab) {
 ```
 
 ```{r analysis_snvs}
-d <- purrr::map(samples, ~ get_stats_sample(.x, flabels_snv)) %>%
+snv_res <- purrr::map(samples, ~ get_snv_stats_sample(.x, flabels_snv)) %>%
   dplyr::bind_rows() %>%
+  dplyr::arrange(SNP_Recall, SNP_Precision, sample, flabel) %>%
   dplyr::mutate(id = dplyr::row_number())
 ```
 
 ```{r tab_descr_snvs}
-x <- dplyr::tribble(
+snv_cap <- dplyr::tribble(
   ~Column,    ~Description,
-  "run1",     "woof run1",
-  "run2",     "woof run2 (truthset)",
+  "run1",     run1,
+  "run2",     glue("{run2} (Truthset)"),
   "subset",   "All/PASSed variants",
   "SNP",      "SNP results",
   "IND",      "Indel results",
@@ -139,258 +174,173 @@ x <- dplyr::tribble(
   "TP",       "True Positive",
   "Truth",    "TP + FN",
   "Recall",   "TP / Truth",
-  "Precision", "TP / TP + FP"
-)
+  "Precision", "TP / TP + FP",
+  "fx", "(1 + x**2) * Precision * Recall / (x**2 * Precision + Recall)"
+) %>%
+  dplyr::mutate(y = paste(Column, Description, sep = ": ")) %>%
+  dplyr::pull(y)
 
-cap <- x %>%
-  mutate(y = paste(Column, Description, sep = ": ")) %>%
-  pull(y)
-cap <- htmltools::tags$caption(htmltools::div(paste(cap[1:5], collapse = "; ")),
-                               htmltools::div(paste(cap[6:length(cap)], collapse = "; ")))
+snv_cap <- htmltools::tags$caption(
+  htmltools::div(paste(snv_cap[1:5], collapse = "; ")),
+  htmltools::div(paste(snv_cap[6:11], collapse = "; ")),
+  htmltools::div(paste(snv_cap[12:length(snv_cap)], collapse = "; ")))
 ```
 
 #### Comparison Table
 
 ```{r eval_tab_snvs}
-bgsize <- '90% 90%'
-big_mark_cols <- c("run1_count", "run2_count",
-                   "SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN",
-                   "IND_Truth", "IND_TP", "IND_FP", "IND_FN")
-bar_colour <- "lightblue"
-bar_range <- c(0.97, 1)
 
-d %>%
-  dplyr::select(-matches("f[123]$")) %>%
-  dplyr::select(id, sample, flabel, subset, run1_count, run2_count,
-                contains("Recall"), contains("Precision"),
-                everything()) %>%
+snv_tab_params <- list(
+  # scrollY should be 35px per row, with max of 580px.
+  scroll_y = 10 + min(nrow(snv_res) * 35, 570),
+  bgsize = "90% 90%",
+  big_mark_cols = c("tot_run1", "tot_run2",
+                    "SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN",
+                    "IND_Truth", "IND_TP", "IND_FP", "IND_FN"),
+  bar_colour = "lightblue",
+  bar_range = c(0.97, 1))
+
+snv_res %>%
+  dplyr::select(
+    id, sample, flabel, subset, tot_run1, tot_run2,
+    dplyr::contains("Recall"), dplyr::contains("Precision"),
+    dplyr::matches("f1$"), dplyr::everything(), -dplyr::matches("f[23]$")) %>%
   dplyr::mutate_if(is.numeric, round, 3) %>%
   dplyr::mutate_if(is.character, as.factor) %>%
+  dplyr::rename(SNP_Rec = "SNP_Recall", IND_Rec = "IND_Recall",
+                SNP_Prec = "SNP_Precision", IND_Prec = "IND_Precision") %>%
   DT::datatable(
-    rownames = FALSE, caption = cap, class = "cell-border stripe hover compact",
+    rownames = FALSE, caption = snv_cap, class = "cell-border display compact",
     filter = list(position = "top", clear = FALSE, plain = FALSE),
     extensions = c("Scroller", "KeyTable"),
-    options = list(scroller = TRUE, scrollY = 600, autoWidth = TRUE, keys = TRUE)
-  ) %>%
-  formatStyle(
-    'SNP_Recall',
-    background = styleColorBar(bar_range, color = bar_colour),
-    backgroundSize = bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center'
-  ) %>%
-  formatStyle(
-    'IND_Recall',
-    background = styleColorBar(bar_range, color = bar_colour),
-    backgroundSize = bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center'
-  ) %>%
-  formatStyle(
-    'SNP_Precision',
-    background = styleColorBar(bar_range, color = bar_colour),
-    backgroundSize = bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center'
-  ) %>%
-  formatStyle(
-    'IND_Precision',
-    background = styleColorBar(bar_range, color = bar_colour),
-    backgroundSize = bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center'
-  ) %>%
-  formatCurrency(big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
+    options = list(scroller = TRUE, scrollY = snv_tab_params$scroll_y, scrollX = TRUE,
+                   autoWidth = TRUE, keys = TRUE, dom = 'Blfrtip')) %>%
+  DT::formatStyle(
+    paste0(c("SNP_", "IND_"), rep(c("Rec", "Prec", "f1"), each = 2)),
+    background = styleColorBar(snv_tab_params$bar_range, color = snv_tab_params$bar_colour),
+    backgroundSize = snv_tab_params$bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center') %>%
+  DT::formatCurrency(snv_tab_params$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
 ```
 
 ### Structural Variants
 
-```{r funcs-svs}
-read_manta_both <- function(f1, f2) {
-  vcf1 <- rock::prep_manta_vcf(f1, filter_pass = TRUE)$sv
-  vcf2 <- rock::prep_manta_vcf(f2, filter_pass = TRUE)$sv
-  list(f1 = vcf1, f2 = vcf2)
+```{r funcs_svs}
+read_sv_fpfn_files_sample <- function(sample) {
+  purrr::map(flabels_sv, function(flab) {
+    file.path(woof_final, sample, "sv_eval", flab, "fpfn.tsv") %>%
+      woofr::read_sv_fpfn_file()
+  }) %>%
+    dplyr::bind_rows()
 }
 
-manta_isec <- function(f1, f2, bnd_switch = TRUE) {
+read_sv_eval_files_sample <- function(sample) {
 
-  switch_bnd <- function(d) {
-    stopifnot(all(colnames(d) %in% c("chrom1", "pos1", "chrom2", "pos2", "svtype")))
-    no_bnd <- dplyr::filter(d, !.data$svtype %in% "BND")
-    bnd <-
-      dplyr::filter(d, .data$svtype %in% "BND") %>%
-      dplyr::select(chrom1 = .data$chrom2, pos1 = .data$pos2,
-                    chrom2 = .data$chrom1, pos2 = .data$pos1, .data$svtype)
-
-    dplyr::bind_rows(no_bnd, bnd)
-  }
-
-  mb <- read_manta_both(f1, f2)
-  tot_vars <- list(run1 = nrow(mb$f1), run2 = nrow(mb$f2))
-  col_nms <- colnames(mb$f1)
-  fp <- dplyr::anti_join(mb$f1, mb$f2, by = col_nms)
-  fn <- dplyr::anti_join(mb$f2, mb$f1, by = col_nms)
-
-  if (bnd_switch) {
-    # some real matching cases simply have switched BND mates
-    fp_new <- dplyr::anti_join(switch_bnd(fp), fn, by = col_nms) %>% switch_bnd()
-    fn_new <- dplyr::anti_join(switch_bnd(fn), fp, by = col_nms) %>% switch_bnd()
-    fp <- fp_new
-    fn <- fn_new
-  }
-
-  return(list(tot_vars = tot_vars,
-              fp = fp,
-              fn = fn))
+  purrr::map(flabels_sv, function(flab) {
+    file.path(woof_final, sample, "sv_eval", flab, "eval_metrics.tsv") %>%
+      woofr::read_sv_eval_file()
+  }) %>%
+    dplyr::bind_rows()
 }
 
-manta_isec_stats <- function(f1, f2, samplename, flab) {
-  mi <- manta_isec(f1, f2, bnd_switch = TRUE)
-  fn <- nrow(mi$fn)
-  fp <- nrow(mi$fp)
-  tp <- mi$tot_vars$run2 - fn
-  truth <- tp + fn
-  recall <- tp / truth
-  precision <- tp / (tp + fp)
-
-  dplyr::tibble(
-    sample = samplename, flabel = flab,
-    run1_count = mi$tot_vars$run1, run2_count = mi$tot_vars$run2,
-    Recall = round(recall, 3), Precision = round(precision, 3), Truth = truth,
-    TP = tp, FP = fp, FN = fn
-  )
-}
-
-get_circos <- function(mi) {
-
-  prep_svs_circos <- function(mi) {
-    sv <- dplyr::bind_rows(list(fp = mi$fp, fn = mi$fn), .id = "fp_or_fn")
-    links_coloured <- sv %>%
-      dplyr::mutate(chrom1 = paste0("hs", .data$chrom1),
-                    chrom2 = paste0("hs", .data$chrom2)) %>%
-      dplyr::mutate(col = dplyr::case_when(
-        fp_or_fn == "fp" ~ '(0,255,0)',
-        fp_or_fn == "fn" ~ '(255,0,0)',
-        TRUE ~ '0,0,0')) %>%
-      dplyr::mutate(pos1b = .data$pos1,
-                    pos2b = .data$pos2,
-                    col = paste0('color=', col)) %>%
-      dplyr::select(.data$chrom1, .data$pos1, .data$pos1b, .data$chrom2, .data$pos2, .data$pos2b, .data$col)
-    return(links_coloured)
-  }
-
-  write_circos_configs <- function(mi) {
-    sample <- mi$sample
-    outdir <- file.path(raijin_share, sample, "woof/final/circos/manta_isec")
-    dir.create(outdir, recursive = TRUE)
-
-    links <- prep_svs_circos(mi)
-    message(glue::glue("Writing circos links file to '{outdir}'."))
-    readr::write_tsv(links, file.path(outdir, "SAMPLE.link.circos"), col_names = FALSE)
-
-    message(glue::glue("Copying circos templates to '{outdir}'"))
-    file.copy(from = system.file("templates/circos", glue::glue("circos_sv.conf"), package = "pebbles"),
-              to = file.path(outdir, "circos.conf"), overwrite = TRUE)
-    file.copy(system.file("templates/circos", "gaps.txt", package = "pebbles"), outdir, overwrite = TRUE)
-    file.copy(system.file("templates/circos", "ideogram.conf", package = "pebbles"), outdir, overwrite = TRUE)
-
-    return(outdir)
-  }
-
-  run_circos <- function(outdir, sample) {
-    export_path <- "export PATH=/g/data3/gx8/extras/umccrise/miniconda/envs/umccrise_purple/bin:/g/data3/gx8/extras/umccrise/miniconda/bin:/opt/bin:/bin:/usr/bin:/opt/pbs/default/bin"
-    cmd <- glue::glue("{export_path} && echo $(date) running circos on {sample} && circos -nosvg -conf {outdir}/circos.conf -outputdir {outdir} -outputfile circos_{sample}.png")
-    system(cmd, ignore.stdout = TRUE)
-    return(file.path(outdir, glue::glue("circos_{sample}.png")))
-  }
-
-  outdir <- write_circos_configs(mi)
-  circos_png <- run_circos(outdir, mi$sample)
-  circos_png
-}
-
-
-sv_results_per_sample <- function(sample) {
-  mi <- manta_isec(sample, f1, f2)
-  mi_stats <- manta_isec_stats(mi)
-  circos <- get_circos(mi)
-
-  list(mi = mi, stats = mi_stats, circos = circos)
+read_circos_sample <- function(sample) {
+  purrr::map(flabels_sv, function(flab) {
+    circos <- file.path(woof_final, sample, "sv_eval", flab,
+                        glue("circos_{sample}.png"))
+    if (file.exists(circos)) {
+      tibble::tibble(sample = sample, flabel = flab, circos = circos)
+    } else {
+      tibble::tibble(sample = sample, flabel = flab, circos = NA_character_)
+    }
+  }) %>%
+    dplyr::bind_rows()
 }
 ```
 
-
-
-
-```{r analysis-svs, message=F, warning=F}
-sv_results <-
-  purrr::map(samples, sv_results_per_sample) %>%
-  purrr::set_names(samples)
+```{r analysis_svs}
+sv_eval_res <- purrr::map(samples, read_sv_eval_files_sample) %>%
+  dplyr::bind_rows() %>%
+  dplyr::arrange(Recall, Precision, sample, flabel)
+sv_fpfn_res <- purrr::map(samples, read_sv_fpfn_files_sample) %>%
+  dplyr::bind_rows()
+sv_circos_res <- purrr::map(samples, read_circos_sample) %>%
+  dplyr::bind_rows() %>%
+  dplyr::left_join(sv_eval_res, by = c("sample", "flabel")) %>%
+  dplyr::filter(!is.na(circos)) %>%
+  dplyr::mutate(title = paste(sample, flabel)) %>%
+  dplyr::select(sample, flabel, title, circos, FP, FN) %>%
+  dplyr::arrange(desc(FP), desc(FN), sample, flabel)
 ```
 
 ```{r tab-descr-svs}
-x <- dplyr::tribble(
+sv_cap <- dplyr::tribble(
   ~Column,    ~Description,
-  "run1",     f1,
-  "run2",     paste(f2, "(truthset)"),
+  "run1",     run1,
+  "run2",     glue("{run2} (Truthset)"),
   "FP",       "False Positive",
   "FN",       "False Negative",
   "TP",       "True Positive",
   "Truth",    "TP + FN",
   "Recall",   "TP / Truth",
-  "Precision", "TP / TP + FP"
-)
-
-cap <- x %>%
-  mutate(d = paste(Column, Description, sep = ": ")) %>%
-  pull(d)
-cap <- htmltools::tags$caption(htmltools::div(paste(cap[1:4], collapse = "; ")),
-                               htmltools::div(paste(cap[5:length(cap)], collapse = "; ")))
+  "Precision", "TP / TP + FP") %>%
+  mutate(y = paste(Column, Description, sep = ": ")) %>%
+  pull(y)
+sv_cap <- htmltools::tags$caption(
+  htmltools::div(paste(sv_cap[1:4], collapse = "; ")),
+  htmltools::div(paste(sv_cap[5:length(sv_cap)], collapse = "; ")))
 ```
 
 
 #### Comparison Table
 
-```{r eval-tab-svs}
-bgsize <- '90% 90%'
-big_mark_cols <- c("run1_count", "run2_count",
-                   "Truth", "TP", "FP", "FN")
+```{r eval_tab_svs}
+sv_tab_params <- list(
+  # scrollY should be 35px per row, with max of 580px.
+  scroll_y = 10 + min(nrow(sv_eval_res) * 35, 570),
+  bgsize = "90% 90%",
+  big_mark_cols = c("run1_count", "run2_count",
+                    "Truth", "TP", "FP", "FN"),
+  bar_colour = "lightgreen",
+  bar_range = c(0.97, 1))
 
-sv_stats <- purrr::map_dfr(sv_results, "stats")
-sv_stats %>%
+sv_eval_res %>%
   dplyr::mutate_if(is.character, as.factor) %>%
   DT::datatable(
-    rownames = FALSE, caption = cap,
-    filter = list(position = "top", clear = FALSE, plain = TRUE),
-    extensions = c("Scroller"),
-    options = list(scroller = TRUE, scrollX = TRUE, scrollY = 220)) %>%
-  formatStyle(
-    'Recall',
-    background = styleColorBar(sv_stats$Recall, 'lightgreen'),
-    backgroundSize = bgsize,
-    backgroundRepeat = 'no-repeat',
-    backgroundPosition = 'center'
-  ) %>%
-  formatStyle(
-    'Precision',
-    background = styleColorBar(sv_stats$Precision, 'lightgreen'),
-    backgroundSize = bgsize,
-    backgroundRepeat = 'no-repeat',
-    backgroundPosition = 'center'
-  ) %>%
-  formatCurrency(big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
+    rownames = FALSE, caption = sv_cap, class = "cell-border display compact",
+    filter = list(position = "top", clear = FALSE, plain = FALSE),
+    extensions = c("Scroller", "KeyTable"),
+    options = list(scroller = TRUE, scrollX = TRUE, scrollY = sv_tab_params$scroll_y)) %>%
+  DT::formatStyle(
+    c("Recall", "Precision"),
+    background = DT::styleColorBar(sv_tab_params$bar_range, color = sv_tab_params$bar_colour),
+    backgroundSize = sv_tab_params$bgsize, backgroundRepeat = 'no-repeat', backgroundPosition = 'center') %>%
+  DT::formatCurrency(sv_tab_params$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
 ```
 
 #### FP/FN Table
 Showing FP and FN SVs from above:
 
-```{r sv-fp-fn-table}
-fp <- purrr::map(sv_results, function(x) x[["mi"]][["fp"]]) %>%
-  dplyr::bind_rows(.id = "sample")
-fn <- purrr::map(sv_results, function(x) x[["mi"]][["fn"]]) %>%
-  dplyr::bind_rows(.id = "sample")
-fp_fn <- dplyr::bind_rows(list(fp = fp, fn = fn), .id = "FP_or_FN")
+```{r fpfn_sv_tab}
+sv_fpfn_tab_params <- list(
+  # scrollY should be 35px per row, with max of 580px.
+  scroll_y = 10 + min(nrow(sv_fpfn_res) * 35, 570),
+  bgsize = "90% 90%",
+  big_mark_cols = c("pos1", "pos2"),
+  bar_colour = "lightgreen",
+  bar_range = c(0.97, 1))
 
-fp_fn %>%
+sv_fpfn_res %>%
   dplyr::mutate_if(is.character, as.factor) %>%
   DT::datatable(
-    rownames = FALSE,
-    filter = list(position = "top", clear = FALSE, plain = TRUE),
-    extensions = c("Scroller"),
-    options = list(scroller = TRUE, scrollX = TRUE, scrollY = 400)) %>%
-  formatCurrency(c("pos1", "pos2"), currency = "", interval = 3, mark = ",", digits = 0)
+    rownames = FALSE, class = "cell-border display compact",
+    filter = list(position = "top", clear = FALSE, plain = FALSE),
+    extensions = c("Scroller", "KeyTable"),
+    options = list(scroller = TRUE, scrollX = TRUE,
+                   scrollY = sv_fpfn_tab_params$scroll_y)) %>%
+  DT::formatStyle("FP_or_FN",
+                  backgroundColor = DT::styleEqual(c("fp", "fn"),
+                                               c("#66FF66", "#FF6666"))) %>%
+  DT::formatCurrency(sv_fpfn_tab_params$big_mark_cols,
+                 currency = "", interval = 3, mark = ",", digits = 0)
 ```
 
 
@@ -399,51 +349,26 @@ fp_fn %>%
 * <span style="color:green">Green</span> = False Positives
 * <span style="color:red">Red</span> = False Negatives
 
-```{r prep-sv-circos}
-circos_plots <- purrr::map_chr(sv_results, "circos")
+```{r circos_display, fig.width=5, fig.height=5, results="asis"}
+x <- sv_circos_res %>%
+  dplyr::filter(FP > 0 | FN > 0)
+for (i in seq_len(nrow(x))) {
+  cat("\n##### ", paste(x$title[i], "\n"))
+  cat(glue('<img src="{x$circos[i]}" alt="{x$title[i]}" width="30%">'), "\n")
+  cat("\n***\n")
+}
 ```
-
-##### `r i <- 0; samples[i <- i + 1]`
-
-```{r out.width="50%"}
-knitr::include_graphics(circos_plots[i])
-```
-
-##### `r  samples[i <- i + 1]`
-
-```{r out.width="50%"}
-knitr::include_graphics(circos_plots[i])
-```
-
-##### `r  samples[i <- i + 1]`
-
-```{r out.width="50%"}
-knitr::include_graphics(circos_plots[i])
-```
-
-##### `r  samples[i <- i + 1]`
-
-```{r out.width="50%"}
-knitr::include_graphics(circos_plots[i])
-```
-
-##### `r  samples[i <- i + 1]`
-
-```{r out.width="50%"}
-knitr::include_graphics(circos_plots[i])
-```
-
 
 
 Methods
 -------
 Here we're comparing the output from two bcbio runs:
 
-- __Run1__: `r params$run1_nm`
-- __Run2__ (_"truthset"_): `r params$run2_nm`
+- __Run1__: `r run1`
+- __Run2__ (_"truthset"_): `r run2`
 
-* The comparison of VCFs has been done using the `compare` module of [woof](https://github.com/umccr/woof).
-* The `Rmd` template used to generate this report is available in [woofr](https://github.com/umccr/woofr).
+* The comparison of VCFs has been done using the `compare` module of [woof](https://github.com/pdiakumis/woof).
+* The `Rmd` template used to generate this report is available in [woofr](https://github.com/pdiakumis/woofr).
 
 ### SNVs/INDELs
 
@@ -505,7 +430,7 @@ create_graph(nodes_df = ndf, edges_df = edf) %>%
 
 ### Structural Variants
 
-- keep all variants from Run1 and Run2 (i.e. don't filter any variants)
+- keep only `PASS`ed variants from Run1 and Run2
 - generate
   - number of SVs in Run1
   - number of SVs in Run2
