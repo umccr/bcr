@@ -559,3 +559,49 @@ read_purple_gene_file <- function(x) {
     dplyr::select(
       chrom = .data$chromosome, .data$start, .data$end,.data$gene, .data$min_cn, .data$max_cn)
 }
+
+#' Compare two PURPLE gene CNV files
+#'
+#' Compares two PURPLE `gene.cnv` (or `cnv.gene.tsv`) files.
+#'
+#' @param cnv1 Path to first PURPLE `gene.cnv` (or `cnv.gene.tsv`) file.
+#' @param cnv2 Path to second PURPLE `gene.cnv` (or `cnv.gene.tsv`) file ('TRUTHSET').
+#' @param out_cn_diff Path to write genes with copy number differences between
+#'   the two runs - needs to be a writable directory.
+#' @param out_coord_diff Path to write genes with different coordinates between
+#'   the two runs - needs to be a writable directory.
+#' @param threshold Numeric. Copy number differences smaller than this value are not reported.
+#' @return Writes results from the comparison to `out_cn_diff` and `out_coord_diff`.
+#'
+#'
+#' @examples
+#'
+#' cnv1 <- system.file("extdata", "cnv/sample_A.purple.gene.cnv", package = "woofr")
+#' cnv2 <- system.file("extdata", "cnv/sample_B.purple.cnv.gene.tsv", package = "woofr")
+#' out1 <- tempfile()
+#' out2 <- tempfile()
+#' compare_purple_gene_files(cnv1, cnv2, out1, out2, threshold = 0.1)
+#'
+#' @export
+compare_purple_gene_files <- function(cnv1, cnv2, out_cn_diff, out_coord_diff, threshold = 0.1) {
+  stopifnot(is.numeric(threshold), threshold >= 0, length(threshold) == 1)
+
+  x1 <- read_purple_gene_file(cnv1)
+  x2 <- read_purple_gene_file(cnv2)
+  # compare chrom,start,end,gene
+  coord_diff <-
+    dplyr::bind_rows(
+      fp = dplyr::anti_join(x1, x2, by = c("chrom", "start", "end", "gene")),
+      fn = dplyr::anti_join(x2, x1, by = c("chrom", "start", "end", "gene")),
+      .id = "fp_or_fn")
+
+  # compare min/max cn
+  cn_diff <-
+    dplyr::left_join(x1, x2, by = c("chrom", "start", "end", "gene"), suffix = paste0(".run", 1:2)) %>%
+    dplyr::mutate(min_diff = abs(.data$min_cn.run1 - .data$min_cn.run2) > threshold,
+                  max_diff = abs(.data$max_cn.run1 - .data$max_cn.run2) > threshold) %>%
+    dplyr::filter(.data$min_diff | .data$max_diff)
+
+  utils::write.table(cn_diff, file = out_cn_diff, quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+  utils::write.table(coord_diff, file = out_coord_diff, quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+}
