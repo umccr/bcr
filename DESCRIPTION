@@ -1,6 +1,6 @@
 Package: woofr
 Title: Helper R Functions for woof
-Version: 0.1.13
+Version: 0.1.14
 Description: Helper R Functions for [woof](https://github.com/pdiakumis/woof).
 Authors@R: 
     person(given = "Peter",
