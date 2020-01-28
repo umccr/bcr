@@ -96,9 +96,15 @@ flabels_sv <- flabels_sv_dir %>%
   list.dirs(recursive = FALSE, full.names = FALSE) %>%
   unique()
 
+flabels_cnv_dir <- file.path(sample_dir, samples, "cnv_eval")
+flabels_cnv <- flabels_cnv_dir %>%
+  list.dirs(recursive = FALSE, full.names = FALSE) %>%
+  unique()
+
 run_report <- TRUE
 run_snv <- TRUE
 run_sv <- TRUE
+run_cnv <- TRUE
 
 if (length(samples) == 0) {
   run_report <- FALSE
@@ -117,13 +123,19 @@ if (length(flabels_sv) == 0) {
   warning(glue("No SV results are shown, since no SV folders ",
                "detected in:\n{tmp}"))
 }
+if (length(flabels_cnv) == 0) {
+  run_cnv <- FALSE
+  tmp <- paste(flabels_cnv_dir, collapse = "\n")
+  warning(glue("No CNV results are shown, since no CNV folders ",
+               "detected in:\n{tmp}"))
+}
 ```
 
 `r if (run_snv) { c("### SNVs/Indels {.tabset .tabset-fade}") }`
 
 ```{r funcs_snvs, eval=run_snv}
 # Get file labels from unique woof/final/<sample>/snv_eval/<flab>/
-read_snv_count_files <- function(woof_final, sample, flabel, pass_or_all) {
+read_snv_count_files <- function(sample, flabel, pass_or_all) {
 
   c1 <- file.path(sample_dir, sample, "snv_counts", "f1", flabel, pass_or_all, "count_vars.txt") %>%
     woofr::read_snv_count_file() %>%
@@ -146,9 +158,9 @@ read_snv_count_files <- function(woof_final, sample, flabel, pass_or_all) {
   tidyr::pivot_wider(d, names_from = run, values_from = count, names_prefix = "tot_")
 }
 
-get_snv_stats <- function(woof_final, sample, flabel, pass_or_all) {
+get_snv_stats <- function(sample, flabel, pass_or_all) {
   dplyr::left_join(
-    read_snv_count_files(woof_final, sample, flabel, pass_or_all),
+    read_snv_count_files(sample, flabel, pass_or_all),
     woofr::read_snv_eval_file(file.path(sample_dir, sample, "snv_eval", flabel, pass_or_all, "eval_stats.tsv")),
     by = c("sample", "flabel", "subset"))
 }
@@ -157,7 +169,7 @@ get_snv_stats_sample <- function(sample, flab) {
 
   get_stats_sample_subset <- function(sample, pass_or_all) {
     flab %>%
-      purrr::map(~ get_snv_stats(woof_final, sample, .x, pass_or_all)) %>%
+      purrr::map(~ get_snv_stats(sample, .x, pass_or_all)) %>%
       dplyr::bind_rows()
   }
 
@@ -351,11 +363,10 @@ sv_fpfn_res %>%
     extensions = c("Scroller", "KeyTable"),
     options = list(scroller = TRUE, scrollX = TRUE,
                    scrollY = sv_fpfn_tpar$scroll_y)) %>%
-  DT::formatStyle("FP_or_FN",
-                  backgroundColor = DT::styleEqual(c("fp", "fn"),
-                                               c("#66FF66", "#FF6666"))) %>%
-  DT::formatCurrency(sv_fpfn_tpar$big_mark_cols,
-                 currency = "", interval = 3, mark = ",", digits = 0)
+  DT::formatStyle(
+    "FP_or_FN", backgroundColor = DT::styleEqual(c("fp", "fn"), c("#66FF66", "#FF6666"))) %>%
+  DT::formatCurrency(
+    sv_fpfn_tpar$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
 ```
 
 `r if (run_sv) { c("#### Circos Plots {.tabset .tabset-fade}") }`
@@ -370,6 +381,86 @@ for (i in seq_len(nrow(x))) {
   cat(glue('<img src="{x$circos[i]}" alt="{x$title[i]}" width="30%">'), "\n")
   cat("\n***\n")
 }
+```
+
+`r if (run_cnv) { c("### Copy Number Variants {.tabset .tabset-fade}") }`
+
+```{r funcs_cnvs, eval=run_cnv}
+read_cnv_cn_diff <- function(sample) {
+  x <- file.path(sample_dir, sample, "cnv_eval/purple-gene_um/cn_diff.tsv")
+  if (!file.exists(x)) {
+    # return tibble of NAs
+    column_nms <- c("chrom", "start", "end", "gene",
+                    "min_cn.run1", "max_cn.run1", "min_cn.run2", "max_cn.run2",
+                    "min_diff", "max_diff")
+    res <- rep(NA, length(column_nms)) %>%
+      purrr::set_names(column_nms) %>%
+      as.list() %>%
+      dplyr::as_tibble()
+    return(res)
+  }
+
+  readr::read_tsv(x, col_types = "ciicddddcc") %>%
+    dplyr::mutate(sample = sample) %>%
+    dplyr::select(sample, everything())
+}
+
+read_cnv_coord_diff <- function(sample) {
+  x <- file.path(sample_dir, sample, "cnv_eval/purple-gene_um/coord_diff.tsv")
+  if (!file.exists(x)) {
+    # return tibble of NAs
+    column_nms <- c("fp_or_fn", "chrom", "start", "end", "gene", "min_cn", "max_cn")
+    res <- rep(NA, length(column_nms)) %>%
+      purrr::set_names(column_nms) %>%
+      as.list() %>%
+      dplyr::as_tibble()
+    return(res)
+  }
+
+  readr::read_tsv(x, col_types = "cciicdd") %>%
+    dplyr::mutate(sample = sample) %>%
+    dplyr::select(sample, everything())
+}
+```
+
+`r if (run_cnv) { c("#### CopyNumber Diffs") }`
+
+```{r cnv_cn_diff}
+cnv_cn_diff_res <-
+  purrr::map(samples, read_cnv_cn_diff) %>%
+  dplyr::bind_rows()
+
+cnv_cn_tpar <- list(
+  # scrollY should be 35px per row, with max of 580px.
+  scroll_y = 10 + min(nrow(cnv_cn_diff_res) * 35, 570),
+  big_mark_cols = c("start", "end"))
+
+cnv_cn_diff_res %>%
+  DT::datatable(
+    rownames = FALSE, class = "cell-border display compact",
+    filter = list(position = "top", clear = FALSE, plain = FALSE),
+    extensions = c("Scroller", "KeyTable"),
+    options = list(scroller = TRUE, scrollX = TRUE,
+                   scrollY = cnv_cn_tpar$scroll_y)) %>%
+  DT::formatStyle(
+    c("min_diff", "max_diff"), backgroundColor = DT::styleEqual(c("TRUE"), c("#FF6666"))) %>%
+  DT::formatCurrency(
+    cnv_cn_tpar$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
+```
+
+`r if (run_cnv) { c("#### Coordinate Diffs") }`
+
+```{r cnv_coord_diff}
+purrr::map(samples, read_cnv_coord_diff) %>%
+  dplyr::bind_rows() %>%
+  DT::datatable(
+    rownames = FALSE, class = "cell-border display compact",
+    filter = list(position = "top", clear = FALSE, plain = FALSE),
+    extensions = c("Scroller", "KeyTable"),
+    options = list(scroller = TRUE, scrollX = TRUE,
+                   scrollY = 150)) %>%
+  DT::formatCurrency(
+    c("start", "end"), currency = "", interval = 3, mark = ",", digits = 0)
 ```
 
 ## Methods {.tabset .tabset-fade}
@@ -503,7 +594,8 @@ dplyr::tibble(key = names(params), value = unlist(params)) %>%
 conda_pkgs %>%
   dplyr::select(-env) %>%
   DT::datatable(filter = list(position = "top", clear = FALSE, plain = TRUE),
-                rownames = FALSE, extensions = c("Scroller", "Buttons"),
+                class = "cell-border display compact",
+                rownames = FALSE, extensions = c("Scroller", "KeyTable"),
                 options = list(scroller = TRUE, scrollX = TRUE, scrollY = 400,
                                dom = 'lfrtip'))
 ```
