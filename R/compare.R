@@ -36,8 +36,10 @@ bcbio_outputs <- function(d) {
         grepl("strelka2", .data$bname) ~ "strelka2-batch_bc",
         grepl("mutect2", .data$bname) ~ "mutect2-batch_bc",
         grepl("germline-gatk-haplotype", .data$bname) ~ "gatk-germ_bc",
-        grepl("germline-sv-prioritize-manta", .data$bname) ~ "IGNORE_ME",
-        grepl("sv-prioritize-manta", .data$bname) ~ "manta_bc",
+        grepl("germline-sv-prioritize-manta$", .data$bname) ~ "IGNORE_ME",
+        grepl("germline-manta$", .data$bname) ~ "IGNORE_ME",
+        grepl("sv-prioritize-manta$", .data$bname) ~ "IGNORE_ME",
+        grepl("-manta$", .data$bname) ~ "manta_bc",
         TRUE ~ "IGNORE_ME"),
       vartype = dplyr::case_when(
         flabel == "IGNORE_ME" ~ "IGNORE_ME",
