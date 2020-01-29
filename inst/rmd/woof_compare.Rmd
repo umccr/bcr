@@ -185,7 +185,7 @@ snv_res <- purrr::map(samples, ~ get_snv_stats_sample(.x, flabels_snv)) %>%
   dplyr::bind_rows() %>%
   dplyr::filter_all(dplyr::any_vars(!is.na(.))) %>% # keep rows with at least one non-NA
   dplyr::arrange(SNP_Recall, SNP_Precision, sample, flabel) %>%
-  dplyr::mutate(id = dplyr::row_number())
+  dplyr::mutate(id = as.character(dplyr::row_number()))
 ```
 
 ```{r tab_descr_snvs, eval=run_snv}
@@ -326,7 +326,7 @@ sv_tpar <- list(
   bgsize = "90% 90%",
   big_mark_cols = c("run1_count", "run2_count",
                     "Truth", "TP", "FP", "FN"),
-  bar_colour = "lightgreen",
+  bar_colour = "#99ff99",
   bar_range = c(0.97, 1))
 
 sv_eval_res %>%
@@ -352,7 +352,7 @@ sv_fpfn_tpar <- list(
   scroll_y = 10 + min(nrow(sv_fpfn_res) * 35, 570),
   bgsize = "90% 90%",
   big_mark_cols = c("pos1", "pos2"),
-  bar_colour = "lightgreen",
+  bar_colour = "#99ff99",
   bar_range = c(0.97, 1))
 
 sv_fpfn_res %>%
@@ -364,7 +364,7 @@ sv_fpfn_res %>%
     options = list(scroller = TRUE, scrollX = TRUE,
                    scrollY = sv_fpfn_tpar$scroll_y)) %>%
   DT::formatStyle(
-    "FP_or_FN", backgroundColor = DT::styleEqual(c("fp", "fn"), c("#66FF66", "#FF6666"))) %>%
+    "FP_or_FN", backgroundColor = DT::styleEqual(c("fp", "fn"), c("#99ff99", "#FFCCCB"))) %>%
   DT::formatCurrency(
     sv_fpfn_tpar$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
 ```
@@ -436,6 +436,7 @@ cnv_cn_tpar <- list(
   big_mark_cols = c("start", "end"))
 
 cnv_cn_diff_res %>%
+  dplyr::mutate_if(is.character, as.factor) %>%
   DT::datatable(
     rownames = FALSE, class = "cell-border display compact",
     filter = list(position = "top", clear = FALSE, plain = FALSE),
@@ -443,7 +444,7 @@ cnv_cn_diff_res %>%
     options = list(scroller = TRUE, scrollX = TRUE,
                    scrollY = cnv_cn_tpar$scroll_y)) %>%
   DT::formatStyle(
-    c("min_diff", "max_diff"), backgroundColor = DT::styleEqual(c("TRUE"), c("#FF6666"))) %>%
+    c("min_diff", "max_diff"), backgroundColor = DT::styleEqual(c("TRUE"), c("#FFCCCB"))) %>%
   DT::formatCurrency(
     cnv_cn_tpar$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
 ```
@@ -453,6 +454,7 @@ cnv_cn_diff_res %>%
 ```{r cnv_coord_diff}
 purrr::map(samples, read_cnv_coord_diff) %>%
   dplyr::bind_rows() %>%
+  dplyr::mutate_if(is.character, as.factor) %>%
   DT::datatable(
     rownames = FALSE, class = "cell-border display compact",
     filter = list(position = "top", clear = FALSE, plain = FALSE),
