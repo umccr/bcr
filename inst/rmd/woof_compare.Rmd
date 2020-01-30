@@ -425,10 +425,23 @@ read_cnv_coord_diff <- function(sample) {
 
 `r if (run_cnv) { c("#### CopyNumber Diffs") }`
 
-```{r cnv_cn_diff}
+```{r cnv_cn_diff, eval=run_cnv}
+umccr_genes <-
+  system.file("extdata/genes/umccr_cancer_genes.latest.genes", package = "woofr") %>%
+  readr::read_lines()
+
 cnv_cn_diff_res <-
   purrr::map(samples, read_cnv_cn_diff) %>%
-  dplyr::bind_rows()
+  dplyr::bind_rows() %>%
+  dplyr::mutate(
+    mincn_1_2 = paste0(min_cn.run1, "/", min_cn.run2),
+    maxcn_1_2 = paste0(max_cn.run1, "/", max_cn.run2),
+    mincn_diff = abs(min_cn.run1 - min_cn.run2),
+    maxcn_diff = abs(max_cn.run1 - max_cn.run2),
+    in_umccr = ifelse(gene %in% umccr_genes, "TRUE", "FALSE")) %>%
+  dplyr::select(sample, gene, in_umccr,
+                min_isdiff = min_diff, max_isdiff = max_diff,
+                mincn_1_2, maxcn_1_2, mincn_diff, maxcn_diff, chrom, start, end)
 
 cnv_cn_tpar <- list(
   # scrollY should be 35px per row, with max of 580px.
@@ -439,19 +452,20 @@ cnv_cn_diff_res %>%
   dplyr::mutate_if(is.character, as.factor) %>%
   DT::datatable(
     rownames = FALSE, class = "cell-border display compact",
+    caption = paste0("Differences in Copy Number (threshold: 0.1)"),
     filter = list(position = "top", clear = FALSE, plain = FALSE),
     extensions = c("Scroller", "KeyTable"),
     options = list(scroller = TRUE, scrollX = TRUE,
                    scrollY = cnv_cn_tpar$scroll_y)) %>%
   DT::formatStyle(
-    c("min_diff", "max_diff"), backgroundColor = DT::styleEqual(c("TRUE"), c("#FFCCCB"))) %>%
+    c("min_isdiff", "max_isdiff", "in_umccr"), backgroundColor = DT::styleEqual(c("TRUE"), c("#FFCCCB"))) %>%
   DT::formatCurrency(
     cnv_cn_tpar$big_mark_cols, currency = "", interval = 3, mark = ",", digits = 0)
 ```
 
 `r if (run_cnv) { c("#### Coordinate Diffs") }`
 
-```{r cnv_coord_diff}
+```{r cnv_coord_diff, eval=run_cnv}
 purrr::map(samples, read_cnv_coord_diff) %>%
   dplyr::bind_rows() %>%
   dplyr::mutate_if(is.character, as.factor) %>%
@@ -479,11 +493,14 @@ Here we're comparing the output from two bcbio runs:
 
 - split into PASS and ALL variants
 - run `bcftools isec` to generate VCFs containing variants that are:
-  - False Positives (FPs): within Run1, but not Truthset
-  - False Negatives (FNs): within Truthset, but not Run1
-- True Positives (TPs): within _both_ Run1 and Truthset
+  - False Positives (FPs): within Run1, but not Truthset (`0000.vcf`)
+  - False Negatives (FNs): within Truthset, but not Run1 (`0001.vcf`)
+  - True Positives (TPs): within _both_ Run1 and Truthset (`0002.vcf`)
+  - Results are in: `woof/final/samples/<sample>/snv_bcftools_isec/<file_label>/<pass-or-all>`
+- count how many variants are in each VCF using `wc -l`
 - run `eval_vcf` function in <https://github.com/umccr/vcf_stuff/>
   to generate a summary table with evaluation statistics
+  - Results are in: `woof/final/samples/<sample>/snv_eval/<file_label>/<pass-or-all>`
 
 ### Diagram
 
