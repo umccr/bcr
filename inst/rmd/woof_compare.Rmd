@@ -569,7 +569,7 @@ create_graph(nodes_df = ndf, edges_df = edf) %>%
 
 ## Addendum {.tabset .tabset-fade}
 
-### Conda Pkgs Main
+### Conda Pkgs
 
 ```{r conda_list_main, warning=FALSE}
 conda_pkgs <-
@@ -588,13 +588,14 @@ main_pkgs <- c(
   "^woof$", "^r-rock$", "^r-woofr$") %>%
   paste(collapse = "|")
 conda_pkgs %>%
-  dplyr::filter(grepl(main_pkgs, name)) %>%
-  dplyr::select(-env) %>%
-  dplyr::arrange(desc(name)) %>%
-  knitr::kable(format = "html") %>%
-  kableExtra::kable_styling(full_width = TRUE, position = "left") %>%
-  kableExtra::column_spec(1, bold = TRUE) %>%
-  kableExtra::scroll_box(height = "300px")
+  dplyr::mutate(main_pkgs = ifelse(grepl(main_pkgs, name), "A", "B")) %>%
+  dplyr::arrange(main_pkgs, desc(name)) %>%
+  dplyr::select(name, version, build, channel) %>%
+  DT::datatable(filter = list(position = "top", clear = FALSE, plain = TRUE),
+                class = "cell-border display compact",
+                rownames = FALSE, extensions = c("Scroller", "KeyTable"),
+                options = list(scroller = TRUE, scrollX = TRUE, scrollY = 300,
+                               dom = 'lfrtip'))
 ```
 
 ### Report Inputs
@@ -607,16 +608,19 @@ dplyr::tibble(key = names(params), value = unlist(params)) %>%
   kableExtra::scroll_box(height = "200px")
 ```
 
-### Conda Pkgs All
+### R Session Info
 
-```{r conda_list_all}
-conda_pkgs %>%
-  dplyr::select(-env) %>%
-  DT::datatable(filter = list(position = "top", clear = FALSE, plain = TRUE),
-                class = "cell-border display compact",
-                rownames = FALSE, extensions = c("Scroller", "KeyTable"),
-                options = list(scroller = TRUE, scrollX = TRUE, scrollY = 400,
-                               dom = 'lfrtip'))
+```{r session_info}
+si <- devtools::session_info(include_base = TRUE)
+unclass(si$packages) %>%
+  dplyr::as_tibble() %>%
+  dplyr::mutate(main_pkgs = ifelse(package %in% c("woofr", "rock", "base"), "A", "B")) %>%
+  dplyr::arrange(main_pkgs, package) %>%
+  dplyr::select(package, version = ondiskversion, path, datestamp = date) %>%
+  knitr::kable(format = "html") %>%
+  kableExtra::kable_styling(full_width = TRUE, position = "left") %>%
+  kableExtra::column_spec(1, bold = TRUE) %>%
+  kableExtra::scroll_box(height = "400px")
 ```
 
 
