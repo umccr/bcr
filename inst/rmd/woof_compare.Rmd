@@ -15,7 +15,7 @@ params:
   woof_final: "/path/to/woof/final"
   run1_nm: "run1"
   run2_nm: "run2"
-title: "`r glue::glue('Comparison of woof runs in {htmltools::br()}\'{normalizePath(params$woof_final)}\':{htmltools::br()}{params$run1_nm}{htmltools::br()}  vs.{htmltools::br()}{params$run2_nm}')`"
+title: "`r glue::glue('Comparison of woof runs in {htmltools::br()}\'{normalizePath(params$woof_final)}\':{htmltools::br()}{params$run1_nm}{htmltools::br()}  vs.{htmltools::br()}{params$run2_nm} (Truthset)')`"
 description: "Comparison of bcbio and umccrise pipeline runs"
 ---
 
@@ -436,8 +436,8 @@ cnv_cn_diff_res <-
   dplyr::mutate(
     mincn_1_2 = paste0(min_cn.run1, "/", min_cn.run2),
     maxcn_1_2 = paste0(max_cn.run1, "/", max_cn.run2),
-    mincn_diff = abs(min_cn.run1 - min_cn.run2),
-    maxcn_diff = abs(max_cn.run1 - max_cn.run2),
+    mincn_diff = round(abs(min_cn.run1 - min_cn.run2), 1),
+    maxcn_diff = round(abs(max_cn.run1 - max_cn.run2), 1),
     in_umccr = ifelse(gene %in% umccr_genes, "TRUE", "FALSE")) %>%
   dplyr::select(sample, gene, in_umccr,
                 min_isdiff = min_diff, max_isdiff = max_diff,
