@@ -7,9 +7,9 @@
 merge_bcbio_outputs(d1, d2, sample)
 }
 \arguments{
-\item{d1}{Path to first \code{<bcbio/final>} directory.}
+\item{d1}{Path to first \verb{<bcbio/final>} directory.}
 
-\item{d2}{Path to second \code{<bcbio/final>} directory.}
+\item{d2}{Path to second \verb{<bcbio/final>} directory.}
 
 \item{sample}{Sample name.}
 }

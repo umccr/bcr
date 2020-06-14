@@ -7,7 +7,7 @@
 umccrise_outputs(d)
 }
 \arguments{
-\item{d}{Path to \code{<umccrised/sample>} umccrise directory.}
+\item{d}{Path to \verb{<umccrised/sample>} umccrise directory.}
 }
 \value{
 A tibble with the following columns:

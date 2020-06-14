@@ -7,9 +7,9 @@
 read_bcbio_configs(conf1, conf2)
 }
 \arguments{
-\item{conf1}{Path to \code{final/config/<timestamp>_project.yaml} for run1.}
+\item{conf1}{Path to \verb{final/config/<timestamp>_project.yaml} for run1.}
 
-\item{conf2}{Path to \code{final/config/<timestamp>_project.yaml} for run2.}
+\item{conf2}{Path to \verb{final/config/<timestamp>_project.yaml} for run2.}
 }
 \value{
 A list with the following elements:

@@ -1,9 +1,10 @@
+^bump\.sh$
 ^deploy$
 ^LICENSE\.md$
 ^nogit$
 ^README\.Rmd$
+^\.Rhistory$
 ^\.Rproj\.user$
 ^setup-pkg\.R$
 ^\.travis\.yml$
 ^woofr\.Rproj$
-^bump\.sh$

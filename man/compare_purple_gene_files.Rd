@@ -4,8 +4,13 @@
 \alias{compare_purple_gene_files}
 \title{Compare two PURPLE gene CNV files}
 \usage{
-compare_purple_gene_files(cnv1, cnv2, out_cn_diff, out_coord_diff,
-  threshold = 0.1)
+compare_purple_gene_files(
+  cnv1,
+  cnv2,
+  out_cn_diff,
+  out_coord_diff,
+  threshold = 0.1
+)
 }
 \arguments{
 \item{cnv1}{Path to first PURPLE \code{gene.cnv} (or \code{cnv.gene.tsv}) file.}

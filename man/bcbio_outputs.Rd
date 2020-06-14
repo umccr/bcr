@@ -7,7 +7,7 @@
 bcbio_outputs(d)
 }
 \arguments{
-\item{d}{Path to \code{<bcbio/final>} directory.}
+\item{d}{Path to \verb{<bcbio/final>} directory.}
 }
 \value{
 A tibble with the following columns:

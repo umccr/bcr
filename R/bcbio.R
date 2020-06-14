@@ -99,7 +99,7 @@ bcbio_vcfs <- function(batch) {
 #' Generates a list of information about the batch within a bcbio
 #' config YAML file.
 #'
-#' @param x Path to bcbio/config/<datestamp>_project.yaml file.
+#' @param x Path to `bcbio/config/<datestamp>_project.yaml` file.
 #' @return A list with the following elements:
 #'   - 'batch_name', 'tumor_name' and 'normal_name': names of batch and its
 #'     tumor/normal samples.

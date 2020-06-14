@@ -7,7 +7,7 @@
 read_bcbio_config(x)
 }
 \arguments{
-\item{x}{Path to bcbio/config/<datestamp>_project.yaml file.}
+\item{x}{Path to \verb{bcbio/config/<datestamp>_project.yaml} file.}
 }
 \value{
 A list with the following elements:
