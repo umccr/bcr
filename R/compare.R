@@ -607,3 +607,31 @@ compare_purple_gene_files <- function(cnv1, cnv2, out_cn_diff, out_coord_diff, t
   utils::write.table(cn_diff, file = out_cn_diff, quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
   utils::write.table(coord_diff, file = out_coord_diff, quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
 }
+
+#' Check Comparison Input File
+#'
+#' Checks that the input file is suitable for running 'woof compare'.
+#'
+#' @param x Path to tab-separated comparison input file.
+#'       Must contain the following five fields per file (NOTE: do not include column names):
+#'       sample name, variant type (SNV, SV or CNV), file label, run1 & run2 file paths (can be S3 paths).
+#' @return If the file has issues, an error message. If there
+#' are no issues, simply returns file path.
+#'
+#' @examples
+#' \dontrun{
+#' x <- "path/to/cromwell_inputs.tsv"
+#' check_comparison_input(x)
+#' }
+#' @export
+check_comparison_input <- function(x) {
+  d <- readr::read_tsv(x, col_types = readr::cols(.default = "c"),
+                       col_names = c("sample", "vartype", "flabel", "run1", "run2"))
+  assertthat::assert_that(
+    all(d$vartype %in% c("SNV", "SV", "CNV")),
+    all(startsWith(d$run1, "/") | startsWith(d$run1, "s3")),
+    all(startsWith(d$run2, "/") | startsWith(d$run2, "s3"))
+  )
+
+  x
+}
