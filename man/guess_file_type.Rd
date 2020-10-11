@@ -4,14 +4,14 @@
 \alias{guess_file_type}
 \title{Guess Type of File}
 \usage{
-guess_file_type(file)
+guess_file_type(x)
 }
 \arguments{
-\item{file}{File path.}
+\item{x}{File path.}
 }
 \value{
 A character string: FASTQ, BAM, VCF or OTHER.
 }
 \description{
-Guesses type of file.
+Guesses type of file based on suffix.
 }
