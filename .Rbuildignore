@@ -8,3 +8,4 @@
 ^setup-pkg\.R$
 ^\.travis\.yml$
 ^woofr\.Rproj$
+^\.github$

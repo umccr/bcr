@@ -7,7 +7,7 @@ package:
 
 source:
 
-  git_url: https://github.com/pdiakumis/woofr
+  git_url: https://github.com/umccr/woofr
   git_tag: master
 
 build:
@@ -68,8 +68,8 @@ test:
     # Put any additional test requirements here.
 
 about:
-  home: https://github.com/pdiakumis/woofr
+  home: https://github.com/umccr/woofr
   license: MIT + file LICENSE
-  summary: Helper R Functions for [woof](https://github.com/pdiakumis/woofr).
+  summary: Helper R Functions for [woof](https://github.com/umccr/woofr).
   license_family: MIT
 
