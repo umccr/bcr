@@ -1,11 +1,12 @@
-woofr
-================
+[![Conda install](https://anaconda.org/pdiakumis/r-woofr/badges/installer/conda.svg)](https://anaconda.org/pdiakumis/r-woofr)
+[![Conda github action status](https://github.com/umccr/woofr/workflows/conda-upload/badge.svg)](https://github.com/umccr/woofr/actions?query=workflow%3Aconda-upload)
 
-[![Travis build
-status](https://travis-ci.org/pdiakumis/woofr.svg?branch=master)](https://travis-ci.org/pdiakumis/woofr)
+woofr
+=====
+
 
 `woofr` is an R package containing R helper functions for
-[woof](https://github.com/pdiakumis/woof).
+[woof](https://github.com/umccr/woof).
 
 You can do the following:
 
@@ -18,7 +19,7 @@ You can do the following:
 ### devtools
 
 You can install the development version of `woofr` from
-[GitHub](https://github.com/pdiakumis/woofr) with:
+[GitHub](https://github.com/umccr/woofr) with:
 
 ``` r
 # install.packages("devtools") # if not pre-installed

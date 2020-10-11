@@ -65,7 +65,7 @@ read_bcftools_querysn <- function(f) {
   }
   tibble::tibble(fname = sub("\\.query_sn\\.txt", "", basename(f))) %>%
     dplyr::mutate(verdict = "OK") %>%
-    dplyr::select(verdict, fname)
+    dplyr::select(.data$verdict, .data$fname)
 }
 
 #' Read md5sum output
@@ -78,5 +78,5 @@ read_bcftools_querysn <- function(f) {
 #' @export
 read_md5sum <- function(f) {
   readr::read_table2(f, col_names = c("md5sum", "fname"), col_types = "cc") %>%
-    dplyr::mutate(fname = basename(fname))
+    dplyr::mutate(fname = basename(.data$fname))
 }
