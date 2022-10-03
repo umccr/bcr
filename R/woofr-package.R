@@ -1,8 +1,3 @@
-#' woofr
-#'
-#' Helper functions for woof.
-#'
-#'
-#' @docType package
-#' @name woofr-package
-NULL
+#' @importFrom rlang .data !!!
+#' @keywords internal
+"_PACKAGE"
