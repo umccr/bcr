@@ -2,8 +2,22 @@
 % Please edit documentation in R/woofr-package.R
 \docType{package}
 \name{woofr-package}
+\alias{woofr}
 \alias{woofr-package}
-\title{woofr}
+\title{woofr: Helper R Functions for woof}
 \description{
-Helper functions for woof.
+Helper R Functions for umccrise (https://github.com/umccr/umccrise) run comparisons.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/umccr/woofr}
+  \item Report bugs at \url{https://github.com/umccr/woofr/issues}
+}
+
+}
+\author{
+\strong{Maintainer}: Peter Diakumis \email{peterdiakumis@gmail.com} (\href{https://orcid.org/0000-0002-7502-7545}{ORCID})
+
+}
+\keyword{internal}
