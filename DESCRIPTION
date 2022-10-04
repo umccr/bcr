@@ -1,6 +1,6 @@
 Package: woofr
 Title: Helper R Functions for woof
-Version: 0.2.0
+Version: 0.3.0
 Description: Helper R Functions for  umccrise (https://github.com/umccr/umccrise) run comparisons.
 Authors@R: 
     person(given = "Peter",
