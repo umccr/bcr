@@ -1,87 +1,3 @@
-
-#' Get bcbio final output files
-#'
-#' Generates a tibble containing absolute paths to bcbio final files.
-#'
-#' @param d Path to `<bcbio/final>` directory.
-#' @return A tibble with the following columns:
-#'   - vartype: variant type. Can be one of:
-#'     - SNV (single-nucleotide/indel variants)
-#'     - SV (structural variants)
-#'   - flabel: file label (e.g. ensemble, manta, vardict etc.)
-#'   - fpath: path to file
-#'
-#' @examples
-#' \dontrun{
-#' d <- "path/to/bcbio/final"
-#' bcbio_outputs(d)
-#' }
-#' @export
-bcbio_outputs <- function(d) {
-  stopifnot(dir.exists(d))
-  vcfs <- list.files(d, pattern = "\\.vcf.gz$", recursive = TRUE, full.names = TRUE)
-  stopifnot(length(vcfs) > 0)
-
-  tibble::tibble(fpath = vcfs) %>%
-    dplyr::mutate(
-      bname = sub("\\.vcf.gz$", "", basename(.data$fpath)),
-      fpath = normalizePath(.data$fpath),
-      flabel = dplyr::case_when(
-        grepl("germline-ensemble", .data$bname) ~ "ens-germ_bc",
-        grepl("ensemble", .data$bname) ~ "ens-batch_bc",
-        grepl("germline-vardict", .data$bname) ~ "vardict-germ_bc",
-        grepl("vardict-germline", .data$bname) ~ "vardict-germ2_bc",
-        grepl("vardict", .data$bname) ~ "vardict-batch_bc",
-        grepl("germline-strelka2", .data$bname) ~ "strelka2-germ_bc",
-        grepl("strelka2", .data$bname) ~ "strelka2-batch_bc",
-        grepl("mutect2", .data$bname) ~ "mutect2-batch_bc",
-        grepl("germline-gatk-haplotype", .data$bname) ~ "gatk-germ_bc",
-        grepl("germline-sv-prioritize-manta$", .data$bname) ~ "IGNORE_ME",
-        grepl("germline-manta$", .data$bname) ~ "IGNORE_ME",
-        grepl("sv-prioritize-manta$", .data$bname) ~ "IGNORE_ME",
-        grepl("-manta$", .data$bname) ~ "manta_bc",
-        TRUE ~ "IGNORE_ME"),
-      vartype = dplyr::case_when(
-        flabel == "IGNORE_ME" ~ "IGNORE_ME",
-        flabel == "manta_bc" ~ "SV",
-        TRUE ~ "SNV")) %>%
-    dplyr::select(.data$vartype, .data$flabel, .data$fpath) %>%
-    dplyr::distinct()
-}
-
-#' Gather bcbio filepaths from two bcbio final directories into a single tibble
-#'
-#' Generates a tibble containing absolute paths to (common) files from two bcbio final directories.
-#'
-#' @param d1 Path to first `<bcbio/final>` directory.
-#' @param d2 Path to second `<bcbio/final>` directory.
-#' @param sample Sample name.
-#' @return A tibble with the following columns:
-#'   - sample name
-#'   - variant type (e.g. SNV, SV, CNV)
-#'   - file label (e.g. ensemble, manta, vardict etc.)
-#'   - run1 file path
-#'   - run2 file path
-#'
-#' @examples
-#' \dontrun{
-#' final1 <- "path/to/bcbio/final1"
-#' final2 <- "path/to/bcbio/final2"
-#' merge_bcbio_outputs(final1, final2)
-#' }
-#' @export
-merge_bcbio_outputs <- function(d1, d2, sample) {
-
-  final1 <- bcbio_outputs(d1)
-  final2 <- bcbio_outputs(d2)
-
-  dplyr::inner_join(final1, final2, by = c("flabel", "vartype")) %>%
-    dplyr::filter(!.data$vartype == "IGNORE_ME") %>%
-    dplyr::mutate(sample_nm = sample) %>%
-    dplyr::select(.data$sample_nm, .data$vartype, .data$flabel, .data$fpath.x, .data$fpath.y) %>%
-    utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
-}
-
 #' Get umccrise final output files
 #'
 #' Generates a tibble containing absolute paths to umccrise final files.
@@ -161,70 +77,6 @@ merge_umccrise_outputs <- function(d1, d2, sample) {
     utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }
 
-
-#' Read YAML configs from two bcbio runs
-#'
-#' Generates a list containing absolute paths to variant files for
-#' two bcbio runs.
-#'
-#'
-#' @param conf1 Path to `final/config/<timestamp>_project.yaml` for run1.
-#' @param conf2 Path to `final/config/<timestamp>_project.yaml` for run2.
-#' @return A list with the following elements:
-#'   - 'batch_name', 'tumor_name', 'normal_name': batch/tumor/normal names.
-#'   - 'variant_files': file type. Can be one of:
-#'     1. ensemble_som
-#'     2. mutect2_som
-#'     3. strelka2_som
-#'     4. vardict_som
-#'     5. ensemble_ger
-#'     6. gatk-haplotype_ger
-#'     7. strelka2_ger
-#'     8. vardict_ger
-#'     9. manta_som-sv
-#'
-#' @examples
-#' \dontrun{
-#' conf1 <- "path/to/bcbio_run1/final/config/<timestamp>_project.yaml"
-#' conf2 <- "path/to/bcbio_run2/final/config/<timestamp>_project.yaml"
-#' read_bcbio_configs(conf1, conf2)
-#' }
-#' @export
-read_bcbio_configs <- function(conf1, conf2) {
-  b1 <- read_bcbio_config(conf1)
-  b2 <- read_bcbio_config(conf2)
-
-  ### variant callers
-  vc1 <- b1$varcallers
-  vc2 <- b2$varcallers
-  stopifnot(all(vc1$caller_name2 == vc2$caller_name2))
-
-  caller_nms <- unique(vc1$caller_name2)
-  caller_list <- purrr::map(caller_nms, function(caller) {
-    list(run1 = vc1$fpath[vc1$caller_name2 == caller],
-         run2 = vc2$fpath[vc2$caller_name2 == caller])}) %>%
-    purrr::set_names(caller_nms)
-
-  ### check stuff: aligner + genome_build can differ
-  stopifnot(b1$batch_name == b2$batch_name,
-            b1$tumor_name == b2$tumor_name,
-            b1$normal_name == b2$normal_name,
-            b1$analysis_type == b2$analysis_type)
-
-  out <- list(
-    batch_name = b1$batch_name,
-    tumor_name = b1$tumor_name,
-    normal_name = b1$normal_name,
-    aligner = list(run1 = b1$aligner,
-                   run2 = b2$aligner),
-    genome_build = list(run1 = b1$genome_build,
-                        run2 = b2$genome_build),
-    analysis_type = b1$analysis_type,
-    variant_files = caller_list)
-
-  out
-
-}
 
 #' Read SNV count file output by woof
 #'
@@ -635,3 +487,185 @@ check_comparison_input <- function(x) {
 
   x
 }
+
+#' Read Manta VCF
+#'
+#' Read main columns of interest from Manta VCF using bcftools or bedr
+#'
+#' Uses bcftools (https://samtools.github.io/bcftools/bcftools.html)
+#' or bedr (https://cran.r-project.org/web/packages/bedr/index.html) to read
+#' in the VCF file.
+#'
+#' @param vcf Path to Manta VCF file (`.vcf.gz` or `.vcf`).
+#' @return A dataframe (`tibble`) with the following fields from the VCF:
+#'   * chrom1: `CHROM` (remove `chr` prefix (if any) for hg38 compatibility)
+#'   * pos1: `POS` | `INFO/BPI_START`
+#'   * pos2: `INFO/END` | `INFO/BPI_END`
+#'   * id: `ID`
+#'   * mateid: `INFO/MATEID`
+#'   * svtype: `INFO/SVTYPE`
+#'   * filter: `FILTER`
+#'
+#' @examples
+#' vcf <- system.file("extdata", "HCC2218_manta.vcf", package = "pebbles")
+#' vcf2 <- system.file("extdata", "manta_no_bpi.vcf", package = "pebbles")
+#' rock:::read_manta_vcf(vcf)
+#' rock:::read_manta_vcf(vcf2)
+#'
+read_manta_vcf <- function(vcf) {
+
+  stopifnot(file.exists(vcf), length(vcf) == 1)
+
+  # You have two options: use bcftools (first choice) or bedr
+  if (Sys.which("bcftools") == "") {
+    # use bedr
+    x <- bedr::read.vcf(vcf, split.info = TRUE, verbose = FALSE)
+    DF <- tibble::tibble(chrom1 = as.character(x$vcf$CHROM),
+                         pos1 = "dummy1",
+                         pos2 = "dummy2",
+                         id = x$vcf$ID,
+                         mateid = x$vcf$MATEID,
+                         svtype = x$vcf$SVTYPE,
+                         filter = x$vcf$FILTER)
+
+    if (any(grepl("BPI_START", x$header$INFO[, "ID"]))) {
+      # use BPI fields
+      DF <- dplyr::mutate(DF,
+                          pos1 = as.integer(x$vcf$BPI_START),
+                          pos2 = as.integer(x$vcf$BPI_END))
+
+    } else {
+      # use typical fields
+      DF <- dplyr::mutate(DF,
+                          pos1 = as.integer(x$vcf$POS),
+                          pos2 = as.integer(x$vcf$END))
+    }
+
+  } else {
+    # use bcftools
+    if (system(paste0("bcftools view -h ",  vcf, " | grep 'BPI_START'"), ignore.stdout = TRUE) == 0) {
+      # use BPI fields
+      bcftools_query <- "bcftools query -f '%CHROM\t%INFO/BPI_START\t%INFO/BPI_END\t%ID\t%INFO/MATEID\t%INFO/SVTYPE\t%FILTER\n'"
+    } else {
+      # use typical fields
+      bcftools_query <- "bcftools query -f '%CHROM\t%POS\t%INFO/END\t%ID\t%INFO/MATEID\t%INFO/SVTYPE\t%FILTER\n'"
+    }
+
+    DF <- system(paste(bcftools_query, vcf), intern = TRUE) %>%
+      tibble::tibble(all_cols = .) %>%
+      tidyr::separate(col = .data$all_cols,
+                      into = c("chrom1", "pos1", "pos2", "id", "mateid", "svtype", "filter"),
+                      sep = "\t", convert = TRUE) %>%
+      dplyr::mutate(chrom1 = as.character(.data$chrom1))
+
+  }
+
+  DF %>%
+    dplyr::mutate(chrom1 = as.character(sub("chr", "", .data$chrom1)),
+                  pos1 = char2num(.data$pos1),
+                  pos2 = char2num(.data$pos2)) # sometimes get '.' in pos2 (e.g. from purple)
+}
+
+#' Prepare Manta VCF for Circos
+#'
+#' Prepares a Manta VCF for display in a Circos plot.
+#'
+#' @param vcf Path to Manta VCF file. Can be compressed or not.
+#' @param filter_pass Keep only variants annotated with a PASS FILTER?
+#'   (default: FALSE).
+#' @return A dataframe (`tibble`) with the following fields from the VCF:
+#'   * chrom1: `CHROM`
+#'   * pos1: `POS` | `INFO/BPI_START`
+#'   * chrom2: `CHROM` (for mate2 if BND)
+#'   * pos2: `INFO/END` | `INFO/BPI_END` (for mate1 if BND)
+#'   * svtype: `INFO/SVTYPE`. Used for plotting.
+#'
+#' @examples
+#' vcf <- system.file("extdata", "HCC2218_manta.vcf", package = "pebbles")
+#' prep_manta_vcf(vcf)
+#'
+#' @export
+prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
+
+  DF <- read_manta_vcf(vcf)
+
+  # BNDs
+
+  # We have POS of mate2 through INFO/END or INFO/BPI_END, just need CHROM.
+  # If no BPI, Manta doesn't annotate BNDs with END. Let's grab it from the mate's POS.
+  # Sometimes with post-processing a mate might get filtered out.
+  # In these cases just filter out the orphan mate.
+  #
+  # Keep BND mate with index 1 (i.e. discard duplicated information)
+  # see <https://github.com/Illumina/manta/blob/master/docs/developerGuide/ID.md>
+  df_bnd1 <- DF %>%
+    dplyr::filter(.data$svtype == "BND")
+
+  match_id2mateid <- match(df_bnd1$id, df_bnd1$mateid)
+  df_bnd2 <-
+    df_bnd1[match_id2mateid, c("chrom1", "pos1")] %>%
+    dplyr::rename(chrom11 = .data$chrom1,
+                  pos11 = .data$pos1)
+  df_bnd <-
+    dplyr::bind_cols(df_bnd1, df_bnd2) %>%
+    dplyr::rename(chrom2 = .data$chrom11) %>%
+    dplyr::mutate(pos2 = ifelse(is.na(.data$pos2), .data$pos11, .data$pos2),
+                  bndid = substring(.data$id, nchar(.data$id)))
+
+  orphan_mates <- df_bnd %>%
+    dplyr::filter(.data$chrom2 %in% NA) %>%
+    dplyr::mutate(orphan = paste0(.data$chrom1, ":", .data$pos1)) %>%
+    dplyr::pull(.data$orphan)
+
+  df_bnd <- df_bnd %>%
+    dplyr::filter(!is.na(.data$chrom2)) %>%
+    dplyr::filter(.data$bndid == "1") %>%
+    dplyr::select(.data$chrom1, .data$pos1, .data$chrom2,
+                  .data$pos2, .data$id, .data$mateid, .data$svtype, .data$filter)
+
+  if (length(orphan_mates) > 0) {
+    warning(glue::glue("The following {length(orphan_mates)} orphan BND mates are removed:\n",
+                       paste(orphan_mates, collapse = "\n")))
+  }
+
+  stopifnot(.manta_proper_pairs(df_bnd$id, df_bnd$mateid))
+
+  # Non-BNDs
+  df_other <- DF %>%
+    dplyr::filter(.data$svtype != "BND") %>%
+    dplyr::mutate(chrom2 = .data$chrom1) %>%
+    dplyr::select(.data$chrom1, .data$pos1, .data$chrom2, .data$pos2,
+                  .data$id, .data$mateid, .data$svtype, .data$filter)
+
+  # All together now
+  sv <- df_other %>%
+    dplyr::bind_rows(df_bnd)
+
+  if (filter_pass) {
+    sv <- sv %>%
+      dplyr::filter(.data$filter == "PASS")
+  }
+
+  sv <- sv %>%
+    dplyr::select(.data$chrom1, .data$pos1,
+                  .data$chrom2, .data$pos2, .data$svtype)
+
+  structure(list(sv = sv), class = "sv")
+}
+
+
+# Check if Manta BND mates are properly paired
+.manta_proper_pairs <- function(id, mid) {
+  ext1 <- substring(id, nchar(id))
+  ext2 <- substring(mid, nchar(mid))
+  pre1 <- substring(id, 1, nchar(id) - 1)
+  pre2 <- substring(mid, 1, nchar(mid) - 1)
+
+  # id should end in 1; mateid in 0
+  if (all(ext1 == "1") & all(ext2 == "0") & all(pre1 == pre2)) {
+    return(TRUE)
+  }
+  return(FALSE)
+}
+
+
