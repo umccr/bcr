@@ -53,3 +53,7 @@ guess_file_type <- function(x) {
     grepl("\\.tbi$", x, ignore.case = TRUE) ~ "VCFindex",
     TRUE ~ "OTHER")
 }
+
+char2num <- function(x, keep = "0-9") {
+  return(as.numeric(gsub(paste0("[^", keep, "]+"), "", x)))
+}

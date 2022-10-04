@@ -222,8 +222,8 @@ read_sv_eval_file <- function(x) {
 manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
 
   read_manta_both <- function(f1, f2) {
-    vcf1 <- rock::prep_manta_vcf(f1, filter_pass = TRUE)$sv
-    vcf2 <- rock::prep_manta_vcf(f2, filter_pass = TRUE)$sv
+    vcf1 <- prep_manta_vcf(f1, filter_pass = TRUE)$sv
+    vcf2 <- prep_manta_vcf(f2, filter_pass = TRUE)$sv
     list(f1 = vcf1, f2 = vcf2)
   }
 
@@ -506,12 +506,6 @@ check_comparison_input <- function(x) {
 #'   * svtype: `INFO/SVTYPE`
 #'   * filter: `FILTER`
 #'
-#' @examples
-#' vcf <- system.file("extdata", "HCC2218_manta.vcf", package = "pebbles")
-#' vcf2 <- system.file("extdata", "manta_no_bpi.vcf", package = "pebbles")
-#' rock:::read_manta_vcf(vcf)
-#' rock:::read_manta_vcf(vcf2)
-#'
 read_manta_vcf <- function(vcf) {
 
   stopifnot(file.exists(vcf), length(vcf) == 1)
@@ -579,10 +573,6 @@ read_manta_vcf <- function(vcf) {
 #'   * chrom2: `CHROM` (for mate2 if BND)
 #'   * pos2: `INFO/END` | `INFO/BPI_END` (for mate1 if BND)
 #'   * svtype: `INFO/SVTYPE`. Used for plotting.
-#'
-#' @examples
-#' vcf <- system.file("extdata", "HCC2218_manta.vcf", package = "pebbles")
-#' prep_manta_vcf(vcf)
 #'
 #' @export
 prep_manta_vcf <- function(vcf, filter_pass = FALSE) {

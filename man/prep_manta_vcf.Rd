@@ -25,8 +25,3 @@ A dataframe (\code{tibble}) with the following fields from the VCF:
 \description{
 Prepares a Manta VCF for display in a Circos plot.
 }
-\examples{
-vcf <- system.file("extdata", "HCC2218_manta.vcf", package = "pebbles")
-prep_manta_vcf(vcf)
-
-}
