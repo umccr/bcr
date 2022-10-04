@@ -29,10 +29,3 @@ Uses bcftools (https://samtools.github.io/bcftools/bcftools.html)
 or bedr (https://cran.r-project.org/web/packages/bedr/index.html) to read
 in the VCF file.
 }
-\examples{
-vcf <- system.file("extdata", "HCC2218_manta.vcf", package = "pebbles")
-vcf2 <- system.file("extdata", "manta_no_bpi.vcf", package = "pebbles")
-rock:::read_manta_vcf(vcf)
-rock:::read_manta_vcf(vcf2)
-
-}

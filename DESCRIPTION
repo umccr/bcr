@@ -14,24 +14,22 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 ByteCompile: true
-Remotes: github::pdiakumis/rock, github::pdiakumis/pebbles
 Depends:
     R (>= 4.1)
 Imports:
     assertthat,
     dplyr,
-    ggplot2,
     glue,
-    pebbles,
     purrr,
     readr,
     rlang,
-    rock,
     tibble,
     tidyr,
-    yaml,
+    tidyselect,
 RoxygenNote: 7.2.1
 Suggests:
+    bedr,
+    dracarys,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
