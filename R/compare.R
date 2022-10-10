@@ -30,16 +30,17 @@ umccrise_outputs <- function(d) {
       bname = sub("\\.vcf.gz$", "", basename(.data$fpath)),
       fpath = normalizePath(.data$fpath),
       flabel = dplyr::case_when(
-        grepl("-somatic-ensemble-PASS$", .data$bname) ~ "pcgr_um",
-        grepl("-normal-ensemble-predispose_genes$", .data$bname) ~ "cpsr_um",
-        grepl("manta$", .data$bname) ~ "manta_um",
-        grepl("purple.*gene", .data$bname) ~ "purple-gene_um",
+        grepl("-somatic-PASS$", .data$bname) ~ "som",
+        grepl("germline.predispose_genes$", .data$bname) ~ "germ",
+        grepl("manta$", .data$bname) ~ "manta",
+        grepl("purple.*gene", .data$bname) ~ "purple_gene",
+        grepl("sage", .data$bname) ~ "sage",
         TRUE ~ "IGNORE_ME"),
       vartype = dplyr::case_when(
         flabel == "IGNORE_ME" ~ "IGNORE_ME",
-        flabel == "manta_um" ~ "SV",
-        flabel == "purple-gene_um" ~ "CNV",
-        flabel %in% c("pcgr_um", "cpsr_um") ~ "SNV",
+        flabel == "manta" ~ "SV",
+        flabel == "purple_gene" ~ "CNV",
+        flabel %in% c("som", "germ", "sage") ~ "SNV",
         TRUE ~ "IGNORE_ME")) %>%
     dplyr::select(.data$vartype, .data$flabel, .data$fpath)
 }
@@ -356,11 +357,11 @@ get_circos <- function(mi, samplename, outdir) {
     readr::write_tsv(links, file.path(outdir, "SAMPLE.link.circos"), col_names = FALSE)
 
     message(glue::glue("Copying circos templates to '{outdir}'"))
-    file.copy(system.file("templates/circos/hg38/circos_sv.conf", package = "pebbles"),
+    file.copy(system.file("extdata/circos/circos_sv.conf", package = "woofr"),
               file.path(outdir, "circos.conf"), overwrite = TRUE)
-    file.copy(system.file("templates/circos/hg38/gaps_hg38.txt", package = "pebbles"),
+    file.copy(system.file("extdata/circos/gaps.txt", package = "woofr"),
               outdir, overwrite = TRUE)
-    file.copy(system.file("templates/circos/hg38/ideogram.conf", package = "pebbles"),
+    file.copy(system.file("extdata/circos/ideogram.conf", package = "woofr"),
               outdir, overwrite = TRUE)
   }
 
