@@ -9,3 +9,4 @@
 ^\.travis\.yml$
 ^woofr\.Rproj$
 ^\.github$
+^\.bumpversion\.cfg$

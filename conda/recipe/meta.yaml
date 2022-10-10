@@ -1,0 +1,62 @@
+package:
+  name: r-woofr
+  version: 0.3.1
+
+source:
+  path: ../..
+
+
+build:
+  number: 0
+  noarch: generic
+  rpaths:
+    - lib/R/lib/
+    - lib/
+
+requirements:
+  build:
+    - git
+  host:
+    - r-base
+    - r-dplyr
+    - r-glue
+    - r-purrr
+    - r-readr
+    - r-rlang
+    - r-tibble
+    - r-tidyr
+    - r-tidyselect
+    # suggests
+    - r-bedr
+    - r-dracarys
+    - r-knitr
+    - r-rmarkdown
+    - r-testthat
+
+  run:
+    - r-base
+    - r-dplyr
+    - r-glue
+    - r-purrr
+    - r-readr
+    - r-rlang
+    - r-tibble
+    - r-tidyr
+    - r-tidyselect
+    # suggests
+    - r-bedr
+    - r-dracarys
+    - r-knitr
+    - r-rmarkdown
+    - r-testthat
+
+test:
+  commands:
+    - $R -e "library('woofr')"
+
+about:
+  home: https://github.com/umccr/woofr
+  license: MIT + file LICENSE
+  summary: Helper R Functions for woof (https://github.com/pdiakumis/woof).
+  license_family: MIT
+

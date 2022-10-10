@@ -1,0 +1,38 @@
+name: condarise
+
+on:
+  push:
+    branches:
+      - main
+env:
+  atoken: ${{ secrets.ANACONDA_UPLOAD_TOKEN }}
+  recipe_path: conda/recipe
+  VERSION: '0.3.1' # versioned by bump2version
+
+jobs:
+  condarise:
+    # When merging to main and the commit message starts with 'Bump version:'
+    if: "startsWith(github.event.head_commit.message, 'Bump version:')"
+    name: Conda
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v3
+      - name: Miniconda setup
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          add-pip-as-python-dependency: false # conda-lock goes crazy if pip pre-installed
+          activate-environment: env1
+          mamba-version: "*"
+          channels: "umccr,conda-forge,bioconda"
+      - name: 🐍 Conda pkg build and upload
+        run: |
+          conda activate
+          mamba create --name cbuildenv conda-build conda-verify anaconda-client boa
+          conda activate cbuildenv
+          conda mambabuild --R 4.1 ${recipe_path} --token ${atoken}
