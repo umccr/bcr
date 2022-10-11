@@ -155,7 +155,7 @@ read_snv_eval_file <- function(x) {
 #'
 #' @export
 read_sv_fpfn_file <- function(x) {
-  column_nms <- c("FP_or_FN", "sample", "flabel", "chrom1","pos1", "chrom2", "pos2", "svtype")
+  column_nms <- c("FP_or_FN", "sample", "flabel", "chrom1","pos1", "chrom2", "pos2", "svtype", "af", "fmt_map", "fmt_val")
   if (!file.exists(x)) {
     res <- rep(NA, length(column_nms)) %>%
       purrr::set_names(column_nms) %>%
@@ -163,9 +163,12 @@ read_sv_fpfn_file <- function(x) {
       dplyr::as_tibble()
     return(res)
   }
-  res <- readr::read_tsv(x, col_types = "ccccicic")
+  res <- readr::read_tsv(x, col_types = "ccccicicccc")
   stopifnot(names(res) == column_nms)
-  res
+  res |>
+    tidyr::separate(.data$fmt_val, into = c("PR_REF", "PR_ALT", "SR_REF", "SR_ALT"), convert = TRUE) |>
+    dplyr::mutate(`SR>PR` = SR_ALT > PR_ALT) |>
+    dplyr::select(-c(.data$PR_REF, .data$SR_REF))
 }
 
 #' Read SV eval metrics file output by woof

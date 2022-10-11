@@ -19,6 +19,9 @@ A dataframe (\code{tibble}) with the following fields from the VCF:
 \item mateid: \code{INFO/MATEID}
 \item svtype: \code{INFO/SVTYPE}
 \item filter: \code{FILTER}
+\item af: \code{BPI_AF}
+\item fmt_map: \code{FORMAT}
+\item fmt_val: \code{SAMPLE}
 }
 }
 \description{

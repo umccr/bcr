@@ -36,7 +36,7 @@ Returns evaluation metrics from comparing two Manta call sets.
 \dontrun{
 f1 <- "path/to/run1/manta.vcf.gz"
 f2 <- "path/to/run2/manta.vcf.gz"
-mi <- manta_isec(f1, f2)
+mi <- manta_isec(f1, f2, "sampleA", "manta1")
 manta_isec_stats(mi, "sampleA", "manta1")
 }
 
