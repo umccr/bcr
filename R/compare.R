@@ -229,12 +229,13 @@ manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
   }
 
   switch_bnd <- function(d) {
-    stopifnot(all(colnames(d) %in% c("chrom1", "pos1", "chrom2", "pos2", "svtype")))
+    stopifnot(all(colnames(d) %in% c("chrom1", "pos1", "chrom2", "pos2", "svtype", "af", "fmt_map", "fmt_val")))
     no_bnd <- dplyr::filter(d, !.data$svtype %in% "BND")
     bnd <-
       dplyr::filter(d, .data$svtype %in% "BND") %>%
       dplyr::select(chrom1 = .data$chrom2, pos1 = .data$pos2,
-                    chrom2 = .data$chrom1, pos2 = .data$pos1, .data$svtype)
+                    chrom2 = .data$chrom1, pos2 = .data$pos1, .data$svtype,
+                    .data$af, .data$fmt_map, .data$fmt_val)
 
     dplyr::bind_rows(no_bnd, bnd)
   }
@@ -289,7 +290,7 @@ manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
 #' \dontrun{
 #' f1 <- "path/to/run1/manta.vcf.gz"
 #' f2 <- "path/to/run2/manta.vcf.gz"
-#' mi <- manta_isec(f1, f2)
+#' mi <- manta_isec(f1, f2, "sampleA", "manta1")
 #' manta_isec_stats(mi, "sampleA", "manta1")
 #' }
 #'
@@ -506,7 +507,9 @@ check_comparison_input <- function(x) {
 #'   * mateid: `INFO/MATEID`
 #'   * svtype: `INFO/SVTYPE`
 #'   * filter: `FILTER`
-#'
+#'   * af: `BPI_AF`
+#'   * fmt_map: `FORMAT`
+#'   * fmt_val: `SAMPLE`
 read_manta_vcf <- function(vcf) {
 
   stopifnot(file.exists(vcf), length(vcf) == 1)
@@ -521,7 +524,10 @@ read_manta_vcf <- function(vcf) {
                          id = x$vcf$ID,
                          mateid = x$vcf$MATEID,
                          svtype = x$vcf$SVTYPE,
-                         filter = x$vcf$FILTER)
+                         filter = x$vcf$FILTER,
+                         af = x$vcf$BPI_AF,
+                         fmt_map = x$vcf$FORMAT,
+                         fmt_val = x$vcf[[length(x$vcf)]])
 
     if (any(grepl("BPI_START", x$header$INFO[, "ID"]))) {
       # use BPI fields
@@ -540,16 +546,16 @@ read_manta_vcf <- function(vcf) {
     # use bcftools
     if (system(paste0("bcftools view -h ",  vcf, " | grep 'BPI_START'"), ignore.stdout = TRUE) == 0) {
       # use BPI fields
-      bcftools_query <- "bcftools query -f '%CHROM\t%INFO/BPI_START\t%INFO/BPI_END\t%ID\t%INFO/MATEID\t%INFO/SVTYPE\t%FILTER\n'"
+      bcftools_query <- "bcftools query -f '%CHROM\t%INFO/BPI_START\t%INFO/BPI_END\t%ID\t%INFO/MATEID\t%INFO/SVTYPE\t%FILTER\t%INFO/BPI_AF\t%FORMAT\n'"
     } else {
-      # use typical fields
-      bcftools_query <- "bcftools query -f '%CHROM\t%POS\t%INFO/END\t%ID\t%INFO/MATEID\t%INFO/SVTYPE\t%FILTER\n'"
+      # use typical fields, no BPI_AF --- TODO: FIX
+      bcftools_query <- "bcftools query -f '%CHROM\t%POS\t%INFO/END\t%ID\t%INFO/MATEID\t%INFO/SVTYPE\t%FILTER\t%FORMAT\n'"
     }
 
     DF <- system(paste(bcftools_query, vcf), intern = TRUE) %>%
       tibble::tibble(all_cols = .) %>%
       tidyr::separate(col = .data$all_cols,
-                      into = c("chrom1", "pos1", "pos2", "id", "mateid", "svtype", "filter"),
+                      into = c("chrom1", "pos1", "pos2", "id", "mateid", "svtype", "filter", "af", "fmt_map", "fmt_val"),
                       sep = "\t", convert = TRUE) %>%
       dplyr::mutate(chrom1 = as.character(.data$chrom1))
 
@@ -612,11 +618,12 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
     dplyr::filter(!is.na(.data$chrom2)) %>%
     dplyr::filter(.data$bndid == "1") %>%
     dplyr::select(.data$chrom1, .data$pos1, .data$chrom2,
-                  .data$pos2, .data$id, .data$mateid, .data$svtype, .data$filter)
+                  .data$pos2, .data$id, .data$mateid, .data$svtype, .data$filter,
+                  .data$af, .data$fmt_map, .data$fmt_val)
 
   if (length(orphan_mates) > 0) {
     warning(glue::glue("The following {length(orphan_mates)} orphan BND mates are removed:\n",
-                       paste(orphan_mates, collapse = "\n")))
+                       paste(orphan_mates, collapse = ", ")))
   }
 
   stopifnot(.manta_proper_pairs(df_bnd$id, df_bnd$mateid))
@@ -626,7 +633,8 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
     dplyr::filter(.data$svtype != "BND") %>%
     dplyr::mutate(chrom2 = .data$chrom1) %>%
     dplyr::select(.data$chrom1, .data$pos1, .data$chrom2, .data$pos2,
-                  .data$id, .data$mateid, .data$svtype, .data$filter)
+                  .data$id, .data$mateid, .data$svtype, .data$filter,
+                  .data$af, .data$fmt_map, .data$fmt_val)
 
   # All together now
   sv <- df_other %>%
@@ -639,7 +647,8 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
 
   sv <- sv %>%
     dplyr::select(.data$chrom1, .data$pos1,
-                  .data$chrom2, .data$pos2, .data$svtype)
+                  .data$chrom2, .data$pos2, .data$svtype,
+                  .data$af, .data$fmt_map, .data$fmt_val)
 
   structure(list(sv = sv), class = "sv")
 }
