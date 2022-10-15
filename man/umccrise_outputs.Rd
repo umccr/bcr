@@ -7,18 +7,21 @@
 umccrise_outputs(d)
 }
 \arguments{
-\item{d}{Path to \verb{<umccrised/sample>} umccrise directory.}
+\item{d}{Path to \verb{<umccrised/sampleid__tumorid>} umccrise directory.}
 }
 \value{
 A tibble with the following columns:
 \itemize{
-\item vartype: variant type. Can be one of:
+\item ftype: file type. Can be one of:
 \itemize{
-\item SNV (single-nucleotide/indel variants)
-\item SV (structural variants)
-\item CNV (copy number variants)
+\item snv (single-nucleotide/indel variants VCF)
+\item sv (Manta structural variants VCF)
+\item cnv (PURPLE copy number variants)
+\item multiqc (MultiQC JSON)
+\item hrd (HRDetect or CHORD TSV results)
+\item canrep_qcsum (QC summary from Cancer Report Rmd)
 }
-\item flabel: file label (e.g. pcgr, cpsr, purple etc.)
+\item flabel: file label (e.g. multiqc, sage, purple etc.)
 \item fpath: path to file
 }
 }

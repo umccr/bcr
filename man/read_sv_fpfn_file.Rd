@@ -17,7 +17,9 @@ Reads SV FP/FN file output by woof
 }
 \examples{
 
+\dontrun{
 x <- system.file("extdata", "sv/fpfn.tsv", package = "woofr")
 read_sv_fpfn_file(x)
+}
 
 }

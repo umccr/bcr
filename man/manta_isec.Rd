@@ -29,7 +29,6 @@ A list with the following elements:
 Intersects two Manta VCF files for evaluation.
 }
 \examples{
-
 \dontrun{
 f1 <- "path/to/run1/manta.vcf.gz"
 f2 <- "path/to/run2/manta.vcf.gz"

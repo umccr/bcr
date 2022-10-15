@@ -21,7 +21,6 @@ Manta comparison.
 Returns Circos plot highlighting FP/FN calls from a Manta comparison.
 }
 \examples{
-
 \dontrun{
 f1 <- "path/to/run1/manta.vcf.gz"
 f2 <- "path/to/run2/manta.vcf.gz"

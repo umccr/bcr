@@ -32,7 +32,6 @@ A single row tibble with the following columns:
 Returns evaluation metrics from comparing two Manta call sets.
 }
 \examples{
-
 \dontrun{
 f1 <- "path/to/run1/manta.vcf.gz"
 f2 <- "path/to/run2/manta.vcf.gz"
