@@ -2,13 +2,16 @@
 #'
 #' Generates a tibble containing absolute paths to umccrise final files.
 #'
-#' @param d Path to `<umccrised/sample>` umccrise directory.
+#' @param d Path to `<umccrised/sampleid__tumorid>` umccrise directory.
 #' @return A tibble with the following columns:
-#'   - vartype: variant type. Can be one of:
-#'     - SNV (single-nucleotide/indel variants)
-#'     - SV (structural variants)
-#'     - CNV (copy number variants)
-#'   - flabel: file label (e.g. pcgr, cpsr, purple etc.)
+#'   - ftype: file type. Can be one of:
+#'     - snv (single-nucleotide/indel variants VCF)
+#'     - sv (Manta structural variants VCF)
+#'     - cnv (PURPLE copy number variants)
+#'     - multiqc (MultiQC JSON)
+#'     - hrd (HRDetect or CHORD TSV results)
+#'     - canrep_qcsum (QC summary from Cancer Report Rmd)
+#'   - flabel: file label (e.g. multiqc, sage, purple etc.)
 #'   - fpath: path to file
 #'
 #' @examples
@@ -18,31 +21,41 @@
 #' }
 #' @export
 umccrise_outputs <- function(d) {
-  stopifnot(dir.exists(d))
-  # grab PURPLE's purple.gene.cnv file too
-  vcfs <- list.files(d, pattern = "\\.vcf.gz$", recursive = TRUE, full.names = TRUE)
-  purple_cnv <- list.files(d, pattern = "purple.*gene", recursive = TRUE, full.names = TRUE)
-  stopifnot(length(vcfs) > 0, length(purple_cnv) <= 1)
-  all_files <- c(vcfs, purple_cnv)
+  assertthat::assert_that(dir.exists(d))
+  d <- normalizePath(d)
+  sid_tid <- basename(d)
+  assertthat::assert_that(grepl("__", sid_tid))
+  sid <- sub("(.*)__(.*)", "\\1", sid_tid)
+  tid <- sub("(.*)__(.*)", "\\2", sid_tid)
+  nid <- "" # keep it empty so file.exists gives FALSE
+  # only way to grab the normal id is via the germline SNV file
+  germ_snv <- list.files(
+    file.path(d, "small_variants"),
+    full.names = TRUE,
+    pattern = "germline\\.predispose_genes\\.vcf\\.gz$"
+  )
+  if (length(germ_snv) == 1 && file.exists(germ_snv)) {
+    nid <- sub(".*__(.*)-germline\\.predispose_genes\\.vcf\\.gz", "\\1", germ_snv)
+  }
+  p <- sid_tid # for brevity
 
-  tibble::tibble(fpath = all_files) %>%
+  tibble::tribble(
+    ~flabel, ~ftype, ~fpath,
+    "mqc_um", "multiqc", glue::glue("{p}-multiqc_report_data/multiqc_data.json"),
+    "canrep_qcsum", "canrep_qcsum", glue::glue("cancer_report_tables/{p}-qc_summary.tsv.gz"),
+    "chord", "hrd", glue::glue("cancer_report_tables/hrd/{p}-chord.tsv.gz"),
+    "hrdetect", "hrd", glue::glue("cancer_report_tables/hrd/{p}-hrdetect.tsv.gz"),
+    "som", "snv", glue::glue("small_variants/{p}-somatic.vcf.gz"),
+    "germ_um", "snv", glue::glue("small_variants/{sid}__{nid}-germline.predispose_genes.vcf.gz"),
+    "sage", "snv", glue::glue("small_variants/sage1/{p}-sage.vcf.gz"),
+    "manta", "sv", glue::glue("structural/{p}-manta.vcf.gz"),
+    "purple", "cnv", glue::glue("purple/{p}.purple.cnv.gene.tsv")
+  ) |>
     dplyr::mutate(
-      bname = sub("\\.vcf.gz$", "", basename(.data$fpath)),
-      fpath = normalizePath(.data$fpath),
-      flabel = dplyr::case_when(
-        grepl("-somatic-PASS$", .data$bname) ~ "som",
-        grepl("germline.predispose_genes$", .data$bname) ~ "germ",
-        grepl("manta$", .data$bname) ~ "manta",
-        grepl("purple.*gene", .data$bname) ~ "purple_gene",
-        grepl("sage", .data$bname) ~ "sage",
-        TRUE ~ "IGNORE_ME"),
-      vartype = dplyr::case_when(
-        flabel == "IGNORE_ME" ~ "IGNORE_ME",
-        flabel == "manta" ~ "SV",
-        flabel == "purple_gene" ~ "CNV",
-        flabel %in% c("som", "germ", "sage") ~ "SNV",
-        TRUE ~ "IGNORE_ME")) %>%
-    dplyr::select(.data$vartype, .data$flabel, .data$fpath)
+      fpath = file.path(d, .data$fpath),
+      fexists = file.exists(.data$fpath)) |>
+    dplyr::filter(.data$fexists) |>
+    dplyr::select(.data$ftype, .data$flabel, .data$fpath)
 }
 
 #' Gather umccrise filepaths from two umccrise final directories into a single tibble
@@ -67,14 +80,12 @@ umccrise_outputs <- function(d) {
 #' }
 #' @export
 merge_umccrise_outputs <- function(d1, d2, sample) {
-
   um1 <- umccrise_outputs(d1)
   um2 <- umccrise_outputs(d2)
 
-  dplyr::inner_join(um1, um2, by = c("flabel", "vartype")) %>%
-    dplyr::filter(!.data$vartype == "IGNORE_ME") %>%
+  dplyr::inner_join(um1, um2, by = c("flabel", "ftype")) %>%
     dplyr::mutate(sample_nm = sample) %>%
-    dplyr::select(.data$sample_nm, .data$vartype, .data$flabel, .data$fpath.x, .data$fpath.y) %>%
+    dplyr::select(.data$sample_nm, .data$ftype, .data$flabel, .data$fpath.x, .data$fpath.y) %>%
     utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }
 
@@ -87,7 +98,6 @@ merge_umccrise_outputs <- function(d1, d2, sample) {
 #' @return A single integer
 #'
 #' @examples
-#'
 #' x <- system.file("extdata", "snv/count_vars.txt", package = "woofr")
 #' read_snv_count_file(x)
 #'
@@ -122,10 +132,12 @@ read_snv_count_file <- function(x) {
 #'
 #' @export
 read_snv_eval_file <- function(x) {
-  column_nms <- c("sample", "flabel", "subset",
-                  "SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN", "SNP_Recall", "SNP_Precision",
-                  "SNP_f1", "SNP_f2", "SNP_f3", "IND_Truth", "IND_TP", "IND_FP",
-                  "IND_FN", "IND_Recall", "IND_Precision", "IND_f1", "IND_f2", "IND_f3")
+  column_nms <- c(
+    "sample", "flabel", "subset",
+    "SNP_Truth", "SNP_TP", "SNP_FP", "SNP_FN", "SNP_Recall", "SNP_Precision",
+    "SNP_f1", "SNP_f2", "SNP_f3", "IND_Truth", "IND_TP", "IND_FP",
+    "IND_FN", "IND_Recall", "IND_Precision", "IND_f1", "IND_f2", "IND_f3"
+  )
   if (!file.exists(x)) {
     # return tibble of NAs
     res <- rep(NA, length(column_nms)) %>%
@@ -136,7 +148,8 @@ read_snv_eval_file <- function(x) {
     return(res)
   }
   res <- readr::read_tsv(x, col_types = readr::cols(
-    .default = "d", sample = "c", flabel = "c", subset = "c"))
+    .default = "d", sample = "c", flabel = "c", subset = "c"
+  ))
   stopifnot(names(res) == column_nms)
   res
 }
@@ -150,12 +163,14 @@ read_snv_eval_file <- function(x) {
 #'
 #' @examples
 #'
+#' \dontrun{
 #' x <- system.file("extdata", "sv/fpfn.tsv", package = "woofr")
 #' read_sv_fpfn_file(x)
+#' }
 #'
 #' @export
 read_sv_fpfn_file <- function(x) {
-  column_nms <- c("FP_or_FN", "sample", "flabel", "chrom1","pos1", "chrom2", "pos2", "svtype", "af", "fmt_map", "fmt_val")
+  column_nms <- c("FP_or_FN", "sample", "flabel", "chrom1", "pos1", "chrom2", "pos2", "svtype", "af", "fmt_map", "fmt_val")
   if (!file.exists(x)) {
     res <- rep(NA, length(column_nms)) %>%
       purrr::set_names(column_nms) %>%
@@ -167,7 +182,7 @@ read_sv_fpfn_file <- function(x) {
   stopifnot(names(res) == column_nms)
   res |>
     tidyr::separate(.data$fmt_val, into = c("PR_REF", "PR_ALT", "SR_REF", "SR_ALT"), convert = TRUE) |>
-    dplyr::mutate(`SR>PR` = SR_ALT > PR_ALT) |>
+    dplyr::mutate(`SR>PR` = .data$SR_ALT > .data$PR_ALT) |>
     dplyr::select(-c(.data$PR_REF, .data$SR_REF))
 }
 
@@ -185,8 +200,10 @@ read_sv_fpfn_file <- function(x) {
 #'
 #' @export
 read_sv_eval_file <- function(x) {
-  column_nms <- c("sample", "flabel", "run1_count", "run2_count", "Recall",
-                  "Precision", "Truth", "TP", "FP", "FN")
+  column_nms <- c(
+    "sample", "flabel", "run1_count", "run2_count", "Recall",
+    "Precision", "Truth", "TP", "FP", "FN"
+  )
   if (!file.exists(x)) {
     res <- rep(NA, length(column_nms)) %>%
       purrr::set_names(column_nms) %>%
@@ -215,7 +232,6 @@ read_sv_eval_file <- function(x) {
 #'   - fn: tibble with False Negative calls i.e. variants in f2 that are not in f1
 #'
 #' @examples
-#'
 #' \dontrun{
 #' f1 <- "path/to/run1/manta.vcf.gz"
 #' f2 <- "path/to/run2/manta.vcf.gz"
@@ -224,7 +240,6 @@ read_sv_eval_file <- function(x) {
 #'
 #' @export
 manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
-
   read_manta_both <- function(f1, f2) {
     vcf1 <- prep_manta_vcf(f1, filter_pass = TRUE)$sv
     vcf2 <- prep_manta_vcf(f2, filter_pass = TRUE)$sv
@@ -236,9 +251,11 @@ manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
     no_bnd <- dplyr::filter(d, !.data$svtype %in% "BND")
     bnd <-
       dplyr::filter(d, .data$svtype %in% "BND") %>%
-      dplyr::select(chrom1 = .data$chrom2, pos1 = .data$pos2,
-                    chrom2 = .data$chrom1, pos2 = .data$pos1, .data$svtype,
-                    .data$af, .data$fmt_map, .data$fmt_val)
+      dplyr::select(
+        chrom1 = .data$chrom2, pos1 = .data$pos2,
+        chrom2 = .data$chrom1, pos2 = .data$pos1, .data$svtype,
+        .data$af, .data$fmt_map, .data$fmt_val
+      )
 
     dplyr::bind_rows(no_bnd, bnd)
   }
@@ -264,9 +281,11 @@ manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
     dplyr::mutate(sample = samplename, flabel = flab) %>%
     dplyr::select(.data$sample, .data$flabel, dplyr::everything())
 
-  return(list(tot_vars = tot_vars,
-              fp = fp,
-              fn = fn))
+  return(list(
+    tot_vars = tot_vars,
+    fp = fp,
+    fn = fn
+  ))
 }
 
 #' Manta Comparison Metrics
@@ -289,7 +308,6 @@ manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
 #'   - Truth: TP + FN
 #'
 #' @examples
-#'
 #' \dontrun{
 #' f1 <- "path/to/run1/manta.vcf.gz"
 #' f2 <- "path/to/run2/manta.vcf.gz"
@@ -325,7 +343,6 @@ manta_isec_stats <- function(mi, samplename, flab) {
 #'   Manta comparison.
 #'
 #' @examples
-#'
 #' \dontrun{
 #' f1 <- "path/to/run1/manta.vcf.gz"
 #' f2 <- "path/to/run2/manta.vcf.gz"
@@ -335,7 +352,6 @@ manta_isec_stats <- function(mi, samplename, flab) {
 #'
 #' @export
 get_circos <- function(mi, samplename, outdir) {
-
   prep_svs_circos <- function() {
     sv <- dplyr::bind_rows(list(fp = mi$fp, fn = mi$fn), .id = "fp_or_fn")
     links_coloured <- sv %>%
@@ -343,12 +359,14 @@ get_circos <- function(mi, samplename, outdir) {
         chrom1 = paste0("hs", .data$chrom1),
         chrom2 = paste0("hs", .data$chrom2),
         col = dplyr::case_when(
-          fp_or_fn == "fp" ~ '(0,255,0)',
-          fp_or_fn == "fn" ~ '(255,0,0)',
-          TRUE ~ 'Oops'),
+          fp_or_fn == "fp" ~ "(0,255,0)",
+          fp_or_fn == "fn" ~ "(255,0,0)",
+          TRUE ~ "Oops"
+        ),
         pos1b = .data$pos1,
         pos2b = .data$pos2,
-        col = paste0('color=', col)) %>%
+        col = paste0("color=", col)
+      ) %>%
       dplyr::select(.data$chrom1, .data$pos1, .data$pos1b, .data$chrom2, .data$pos2, .data$pos2b, .data$col)
 
     return(links_coloured)
@@ -362,11 +380,17 @@ get_circos <- function(mi, samplename, outdir) {
 
     message(glue::glue("Copying circos templates to '{outdir}'"))
     file.copy(system.file("extdata/circos/circos_sv.conf", package = "woofr"),
-              file.path(outdir, "circos.conf"), overwrite = TRUE)
+      file.path(outdir, "circos.conf"),
+      overwrite = TRUE
+    )
     file.copy(system.file("extdata/circos/gaps.txt", package = "woofr"),
-              outdir, overwrite = TRUE)
+      outdir,
+      overwrite = TRUE
+    )
     file.copy(system.file("extdata/circos/ideogram.conf", package = "woofr"),
-              outdir, overwrite = TRUE)
+      outdir,
+      overwrite = TRUE
+    )
   }
 
   run_circos <- function() {
@@ -414,9 +438,11 @@ read_purple_gene_file <- function(x) {
       start = as.integer(.data$start),
       end = as.integer(.data$end),
       min_cn = round(as.numeric(.data$mincopynumber), 1),
-      max_cn = round(as.numeric(.data$maxcopynumber), 1)) %>%
+      max_cn = round(as.numeric(.data$maxcopynumber), 1)
+    ) %>%
     dplyr::select(
-      chrom = .data$chromosome, .data$start, .data$end,.data$gene, .data$min_cn, .data$max_cn)
+      chrom = .data$chromosome, .data$start, .data$end, .data$gene, .data$min_cn, .data$max_cn
+    )
 }
 
 #' Compare two PURPLE gene CNV files
@@ -452,13 +478,16 @@ compare_purple_gene_files <- function(cnv1, cnv2, out_cn_diff, out_coord_diff, t
     dplyr::bind_rows(
       fp = dplyr::anti_join(x1, x2, by = c("chrom", "start", "end", "gene")),
       fn = dplyr::anti_join(x2, x1, by = c("chrom", "start", "end", "gene")),
-      .id = "fp_or_fn")
+      .id = "fp_or_fn"
+    )
 
   # compare min/max cn
   cn_diff <-
     dplyr::left_join(x1, x2, by = c("chrom", "start", "end", "gene"), suffix = paste0(".run", 1:2)) %>%
-    dplyr::mutate(min_diff = abs(.data$min_cn.run1 - .data$min_cn.run2) > threshold,
-                  max_diff = abs(.data$max_cn.run1 - .data$max_cn.run2) > threshold) %>%
+    dplyr::mutate(
+      min_diff = abs(.data$min_cn.run1 - .data$min_cn.run2) > threshold,
+      max_diff = abs(.data$max_cn.run1 - .data$max_cn.run2) > threshold
+    ) %>%
     dplyr::filter(.data$min_diff | .data$max_diff)
 
   utils::write.table(cn_diff, file = out_cn_diff, quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
@@ -482,8 +511,10 @@ compare_purple_gene_files <- function(cnv1, cnv2, out_cn_diff, out_coord_diff, t
 #' }
 #' @export
 check_comparison_input <- function(x) {
-  d <- readr::read_tsv(x, col_types = readr::cols(.default = "c"),
-                       col_names = c("sample", "vartype", "flabel", "run1", "run2"))
+  d <- readr::read_tsv(x,
+    col_types = readr::cols(.default = "c"),
+    col_names = c("sample", "vartype", "flabel", "run1", "run2")
+  )
   assertthat::assert_that(
     all(d$vartype %in% c("SNV", "SV", "CNV")),
     all(startsWith(d$run1, "/") | startsWith(d$run1, "s3")),
@@ -514,40 +545,41 @@ check_comparison_input <- function(x) {
 #'   * fmt_map: `FORMAT`
 #'   * fmt_val: `SAMPLE`
 read_manta_vcf <- function(vcf) {
-
   stopifnot(file.exists(vcf), length(vcf) == 1)
 
   # You have two options: use bcftools (first choice) or bedr
   if (Sys.which("bcftools") == "") {
     # use bedr
     x <- bedr::read.vcf(vcf, split.info = TRUE, verbose = FALSE)
-    DF <- tibble::tibble(chrom1 = as.character(x$vcf$CHROM),
-                         pos1 = "dummy1",
-                         pos2 = "dummy2",
-                         id = x$vcf$ID,
-                         mateid = x$vcf$MATEID,
-                         svtype = x$vcf$SVTYPE,
-                         filter = x$vcf$FILTER,
-                         af = x$vcf$BPI_AF,
-                         fmt_map = x$vcf$FORMAT,
-                         fmt_val = x$vcf[[length(x$vcf)]])
+    DF <- tibble::tibble(
+      chrom1 = as.character(x$vcf$CHROM),
+      pos1 = "dummy1",
+      pos2 = "dummy2",
+      id = x$vcf$ID,
+      mateid = x$vcf$MATEID,
+      svtype = x$vcf$SVTYPE,
+      filter = x$vcf$FILTER,
+      af = x$vcf$BPI_AF,
+      fmt_map = x$vcf$FORMAT,
+      fmt_val = x$vcf[[length(x$vcf)]]
+    )
 
     if (any(grepl("BPI_START", x$header$INFO[, "ID"]))) {
       # use BPI fields
       DF <- dplyr::mutate(DF,
-                          pos1 = as.integer(x$vcf$BPI_START),
-                          pos2 = as.integer(x$vcf$BPI_END))
-
+        pos1 = as.integer(x$vcf$BPI_START),
+        pos2 = as.integer(x$vcf$BPI_END)
+      )
     } else {
       # use typical fields
       DF <- dplyr::mutate(DF,
-                          pos1 = as.integer(x$vcf$POS),
-                          pos2 = as.integer(x$vcf$END))
+        pos1 = as.integer(x$vcf$POS),
+        pos2 = as.integer(x$vcf$END)
+      )
     }
-
   } else {
     # use bcftools
-    if (system(paste0("bcftools view -h ",  vcf, " | grep 'BPI_START'"), ignore.stdout = TRUE) == 0) {
+    if (system(paste0("bcftools view -h ", vcf, " | grep 'BPI_START'"), ignore.stdout = TRUE) == 0) {
       # use BPI fields
       bcftools_query <- "bcftools query -f '%CHROM\t%INFO/BPI_START\t%INFO/BPI_END\t%ID\t%INFO/MATEID\t%INFO/SVTYPE\t%FILTER\t%INFO/BPI_AF\t%FORMAT\n'"
     } else {
@@ -557,17 +589,20 @@ read_manta_vcf <- function(vcf) {
 
     DF <- system(paste(bcftools_query, vcf), intern = TRUE) %>%
       tibble::tibble(all_cols = .) %>%
-      tidyr::separate(col = .data$all_cols,
-                      into = c("chrom1", "pos1", "pos2", "id", "mateid", "svtype", "filter", "af", "fmt_map", "fmt_val"),
-                      sep = "\t", convert = TRUE) %>%
+      tidyr::separate(
+        col = .data$all_cols,
+        into = c("chrom1", "pos1", "pos2", "id", "mateid", "svtype", "filter", "af", "fmt_map", "fmt_val"),
+        sep = "\t", convert = TRUE
+      ) %>%
       dplyr::mutate(chrom1 = as.character(.data$chrom1))
-
   }
 
   DF %>%
-    dplyr::mutate(chrom1 = as.character(sub("chr", "", .data$chrom1)),
-                  pos1 = char2num(.data$pos1),
-                  pos2 = char2num(.data$pos2)) # sometimes get '.' in pos2 (e.g. from purple)
+    dplyr::mutate(
+      chrom1 = as.character(sub("chr", "", .data$chrom1)),
+      pos1 = char2num(.data$pos1),
+      pos2 = char2num(.data$pos2)
+    ) # sometimes get '.' in pos2 (e.g. from purple)
 }
 
 #' Prepare Manta VCF for Circos
@@ -586,7 +621,6 @@ read_manta_vcf <- function(vcf) {
 #'
 #' @export
 prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
-
   DF <- read_manta_vcf(vcf)
 
   # BNDs
@@ -604,13 +638,17 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
   match_id2mateid <- match(df_bnd1$id, df_bnd1$mateid)
   df_bnd2 <-
     df_bnd1[match_id2mateid, c("chrom1", "pos1")] %>%
-    dplyr::rename(chrom11 = .data$chrom1,
-                  pos11 = .data$pos1)
+    dplyr::rename(
+      chrom11 = .data$chrom1,
+      pos11 = .data$pos1
+    )
   df_bnd <-
     dplyr::bind_cols(df_bnd1, df_bnd2) %>%
     dplyr::rename(chrom2 = .data$chrom11) %>%
-    dplyr::mutate(pos2 = ifelse(is.na(.data$pos2), .data$pos11, .data$pos2),
-                  bndid = substring(.data$id, nchar(.data$id)))
+    dplyr::mutate(
+      pos2 = ifelse(is.na(.data$pos2), .data$pos11, .data$pos2),
+      bndid = substring(.data$id, nchar(.data$id))
+    )
 
   orphan_mates <- df_bnd %>%
     dplyr::filter(.data$chrom2 %in% NA) %>%
@@ -620,13 +658,17 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
   df_bnd <- df_bnd %>%
     dplyr::filter(!is.na(.data$chrom2)) %>%
     dplyr::filter(.data$bndid == "1") %>%
-    dplyr::select(.data$chrom1, .data$pos1, .data$chrom2,
-                  .data$pos2, .data$id, .data$mateid, .data$svtype, .data$filter,
-                  .data$af, .data$fmt_map, .data$fmt_val)
+    dplyr::select(
+      .data$chrom1, .data$pos1, .data$chrom2,
+      .data$pos2, .data$id, .data$mateid, .data$svtype, .data$filter,
+      .data$af, .data$fmt_map, .data$fmt_val
+    )
 
   if (length(orphan_mates) > 0) {
-    warning(glue::glue("The following {length(orphan_mates)} orphan BND mates are removed:\n",
-                       paste(orphan_mates, collapse = ", ")))
+    warning(glue::glue(
+      "The following {length(orphan_mates)} orphan BND mates are removed:\n",
+      paste(orphan_mates, collapse = ", ")
+    ))
   }
 
   stopifnot(.manta_proper_pairs(df_bnd$id, df_bnd$mateid))
@@ -635,9 +677,11 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
   df_other <- DF %>%
     dplyr::filter(.data$svtype != "BND") %>%
     dplyr::mutate(chrom2 = .data$chrom1) %>%
-    dplyr::select(.data$chrom1, .data$pos1, .data$chrom2, .data$pos2,
-                  .data$id, .data$mateid, .data$svtype, .data$filter,
-                  .data$af, .data$fmt_map, .data$fmt_val)
+    dplyr::select(
+      .data$chrom1, .data$pos1, .data$chrom2, .data$pos2,
+      .data$id, .data$mateid, .data$svtype, .data$filter,
+      .data$af, .data$fmt_map, .data$fmt_val
+    )
 
   # All together now
   sv <- df_other %>%
@@ -649,9 +693,11 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
   }
 
   sv <- sv %>%
-    dplyr::select(.data$chrom1, .data$pos1,
-                  .data$chrom2, .data$pos2, .data$svtype,
-                  .data$af, .data$fmt_map, .data$fmt_val)
+    dplyr::select(
+      .data$chrom1, .data$pos1,
+      .data$chrom2, .data$pos2, .data$svtype,
+      .data$af, .data$fmt_map, .data$fmt_val
+    )
 
   structure(list(sv = sv), class = "sv")
 }
@@ -670,5 +716,3 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
   }
   return(FALSE)
 }
-
-
