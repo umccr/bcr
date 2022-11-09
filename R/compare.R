@@ -49,7 +49,8 @@ umccrise_outputs <- function(d) {
     "germ_um", "snv", glue::glue("small_variants/{sid}__{nid}-germline.predispose_genes.vcf.gz"),
     "sage", "snv", glue::glue("small_variants/sage1/{p}-sage.vcf.gz"),
     "manta", "sv", glue::glue("structural/{p}-manta.vcf.gz"),
-    "purple", "cnv", glue::glue("purple/{p}.purple.cnv.gene.tsv")
+    "purple", "cnv", glue::glue("purple/{p}.purple.cnv.gene.tsv"),
+    "pcgr_tsv", "pcgr_tsv", glue::glue("small_variants/{p}-somatic.pcgr.snvs_indels.tiers.tsv")
   ) |>
     dplyr::mutate(
       fpath = file.path(d, .data$fpath),
