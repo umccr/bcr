@@ -25,6 +25,6 @@ list_s3_objects <- function(b, recursive = FALSE) {
                     sep = " +", convert = TRUE) %>%
     dplyr::mutate(fname_full = file.path(b, .data$fname),
                   fname_type = guess_file_type(.data$fname)) %>%
-    dplyr::select(basename = .data$fname, .data$fname_full, .data$fname_type)
+    dplyr::select(basename = "fname", "fname_full", "fname_type")
 
 }

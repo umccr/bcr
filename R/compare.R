@@ -56,7 +56,7 @@ umccrise_outputs <- function(d) {
       fpath = file.path(d, .data$fpath),
       fexists = file.exists(.data$fpath)) |>
     dplyr::filter(.data$fexists) |>
-    dplyr::select(.data$ftype, .data$flabel, .data$fpath)
+    dplyr::select("ftype", "flabel", "fpath")
 }
 
 #' Gather umccrise filepaths from two umccrise final directories into a single tibble
@@ -86,7 +86,7 @@ merge_umccrise_outputs <- function(d1, d2, sample) {
 
   dplyr::inner_join(um1, um2, by = c("flabel", "ftype")) %>%
     dplyr::mutate(sample_nm = sample) %>%
-    dplyr::select(.data$sample_nm, .data$ftype, .data$flabel, .data$fpath.x, .data$fpath.y) %>%
+    dplyr::select("sample_nm", "ftype", "flabel", "fpath.x", "fpath.y") %>%
     utils::write.table(file = "", quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
 }
 
@@ -184,7 +184,7 @@ read_sv_fpfn_file <- function(x) {
   res |>
     tidyr::separate(.data$fmt_val, into = c("PR_REF", "PR_ALT", "SR_REF", "SR_ALT"), convert = TRUE) |>
     dplyr::mutate(`SR>PR` = .data$SR_ALT > .data$PR_ALT) |>
-    dplyr::select(-c(.data$PR_REF, .data$SR_REF))
+    dplyr::select(-c("PR_REF", "SR_REF"))
 }
 
 #' Read SV eval metrics file output by woof
@@ -253,9 +253,9 @@ manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
     bnd <-
       dplyr::filter(d, .data$svtype %in% "BND") %>%
       dplyr::select(
-        chrom1 = .data$chrom2, pos1 = .data$pos2,
-        chrom2 = .data$chrom1, pos2 = .data$pos1, .data$svtype,
-        .data$af, .data$fmt_map, .data$fmt_val
+        chrom1 = "chrom2", pos1 = "pos2",
+        chrom2 = "chrom1", pos2 = "pos1", "svtype",
+        "af", "fmt_map", "fmt_val"
       )
 
     dplyr::bind_rows(no_bnd, bnd)
@@ -277,10 +277,10 @@ manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
 
   fp <- fp %>%
     dplyr::mutate(sample = samplename, flabel = flab) %>%
-    dplyr::select(.data$sample, .data$flabel, dplyr::everything())
+    dplyr::select("sample", "flabel", dplyr::everything())
   fn <- fn %>%
     dplyr::mutate(sample = samplename, flabel = flab) %>%
-    dplyr::select(.data$sample, .data$flabel, dplyr::everything())
+    dplyr::select("sample", "flabel", dplyr::everything())
 
   return(list(
     tot_vars = tot_vars,
@@ -368,7 +368,7 @@ get_circos <- function(mi, samplename, outdir) {
         pos2b = .data$pos2,
         col = paste0("color=", col)
       ) %>%
-      dplyr::select(.data$chrom1, .data$pos1, .data$pos1b, .data$chrom2, .data$pos2, .data$pos2b, .data$col)
+      dplyr::select("chrom1", "pos1", "pos1b", "chrom2", "pos2", "pos2b", "col")
 
     return(links_coloured)
   }
@@ -442,7 +442,7 @@ read_purple_gene_file <- function(x) {
       max_cn = round(as.numeric(.data$maxcopynumber), 1)
     ) %>%
     dplyr::select(
-      chrom = .data$chromosome, .data$start, .data$end, .data$gene, .data$min_cn, .data$max_cn
+      chrom = "chromosome", "start", "end", "gene", "min_cn", "max_cn"
     )
 }
 
@@ -660,9 +660,9 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
     dplyr::filter(!is.na(.data$chrom2)) %>%
     dplyr::filter(.data$bndid == "1") %>%
     dplyr::select(
-      .data$chrom1, .data$pos1, .data$chrom2,
-      .data$pos2, .data$id, .data$mateid, .data$svtype, .data$filter,
-      .data$af, .data$fmt_map, .data$fmt_val
+      "chrom1", "pos1", "chrom2",
+      "pos2", "id", "mateid", "svtype", "filter",
+      "af", "fmt_map", "fmt_val"
     )
 
   if (length(orphan_mates) > 0) {
@@ -679,9 +679,9 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
     dplyr::filter(.data$svtype != "BND") %>%
     dplyr::mutate(chrom2 = .data$chrom1) %>%
     dplyr::select(
-      .data$chrom1, .data$pos1, .data$chrom2, .data$pos2,
-      .data$id, .data$mateid, .data$svtype, .data$filter,
-      .data$af, .data$fmt_map, .data$fmt_val
+      "chrom1", "pos1", "chrom2", "pos2",
+      "id", "mateid", "svtype", "filter",
+      "af", "fmt_map", "fmt_val"
     )
 
   # All together now
@@ -695,9 +695,9 @@ prep_manta_vcf <- function(vcf, filter_pass = FALSE) {
 
   sv <- sv %>%
     dplyr::select(
-      .data$chrom1, .data$pos1,
-      .data$chrom2, .data$pos2, .data$svtype,
-      .data$af, .data$fmt_map, .data$fmt_val
+      "chrom1", "pos1",
+      "chrom2", "pos2", "svtype",
+      "af", "fmt_map", "fmt_val"
     )
 
   structure(list(sv = sv), class = "sv")

@@ -1,7 +1,7 @@
 Package: woofr
 Title: Helper R Functions for woof
 Version: 0.3.2
-Description: Helper R Functions for  umccrise (https://github.com/umccr/umccrise) run comparisons.
+Description: Helper R Functions for umccrise (https://github.com/umccr/umccrise) run comparisons.
 Authors@R: 
     person(given = "Peter",
            family = "Diakumis",
@@ -26,7 +26,7 @@ Imports:
     tibble,
     tidyr,
     tidyselect,
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.2
 Suggests:
     bedr,
     dracarys,

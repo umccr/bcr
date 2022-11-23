@@ -33,7 +33,7 @@ multiqc_cmp <- function(x1, x2, out) {
     dplyr::bind_rows(.id = "label") |>
     dplyr::mutate(woofr_sample = sd[.data$umccr_id]) |>
     dplyr::mutate(dplyr::across(.cols = dplyr::everything(), as.character)) |>
-    dplyr::select(.data$label, .data$woofr_sample, dplyr::everything()) |>
+    dplyr::select("label", "woofr_sample", dplyr::everything()) |>
     tidyr::pivot_longer(cols = 3:tidyselect::last_col()) |>
     tidyr::pivot_wider(names_from = c(.data$label, .data$woofr_sample), values_from = .data$value) |>
     dplyr::mutate(equal1 = .data$run1_a %in% .data$run2_a)
