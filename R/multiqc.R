@@ -15,7 +15,7 @@
 #' lab1 <- "v212"
 #' lab2 <- "v200"
 #' cmp(x1, x2, lab1, lab2)
-#'}
+#' }
 #' @export
 multiqc_cmp <- function(x1, x2, out) {
   # these should be 2-row tibbles for umccrise
