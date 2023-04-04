@@ -17,7 +17,7 @@ PCGR TSV Comparison
 \examples{
 
 \dontrun{
-f1 <- "~/projects/woof/woof_compare_reports/nogit/umccrise_2.3.0rc.4/umccrised/SEQC50__SEQC-II_tumour/small_variants/SEQC50__SEQC-II_tumour-somatic.pcgr.snvs_indels.tiers.tsv"
+f1 <- "~/projects/woof/woof_compare_reports/nogit/umccrise_2.3.0rc4/umccrised/SEQC50__SEQC-II_tumour/small_variants/SEQC50__SEQC-II_tumour-somatic.pcgr.snvs_indels.tiers.tsv"
 f2 <- "~/projects/woof/woof_compare_reports/nogit/umccrise_2.2.0/umccrised/SEQC50__SEQC-II_tumour/small_variants/SEQC50__SEQC-II_tumour-somatic.pcgr.snvs_indels.tiers.tsv"
 pcgr_cmp(f1, f2)
 }
