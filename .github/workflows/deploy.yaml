@@ -7,6 +7,7 @@ on:
 env:
   atoken: ${{ secrets.ANACONDA_UPLOAD_TOKEN }}
   recipe_path: conda/recipe
+  env_yaml_path: conda/env
   VERSION: '0.3.2' # versioned by bump2version
 
 jobs:
@@ -22,17 +23,11 @@ jobs:
     steps:
       - name: Code checkout
         uses: actions/checkout@v3
-      - name: Miniconda setup
-        uses: conda-incubator/setup-miniconda@v2
+      - name: Micromamba setup
+        uses: mamba-org/setup-micromamba@v1
         with:
-          auto-update-conda: true
-          add-pip-as-python-dependency: false # conda-lock goes crazy if pip pre-installed
-          activate-environment: env1
-          mamba-version: "*"
-          channels: "umccr,conda-forge,bioconda"
+          micromamba-version: '1.4.9-0'
+          environment-file: ${{ env.env_yaml_path }}/condabuild.yaml
       - name: 🐍 Conda pkg build and upload
         run: |
-          conda activate
-          mamba create --name cbuildenv conda-build conda-verify anaconda-client boa
-          conda activate cbuildenv
-          conda mambabuild --R 4.1 ${recipe_path} --token ${atoken}
+          conda mambabuild --R 4.2 ${recipe_path} --token ${atoken} -c umccr -c bioconda -c conda-forge
