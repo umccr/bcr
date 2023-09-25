@@ -8,7 +8,7 @@ env:
   atoken: ${{ secrets.ANACONDA_UPLOAD_TOKEN }}
   recipe_path: conda/recipe
   env_yaml_path: conda/env
-  VERSION: '0.3.2' # versioned by bump2version
+  VERSION: '0.3.3' # versioned by bump2version
 
 jobs:
   condarise:
