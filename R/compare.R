@@ -263,7 +263,8 @@ manta_isec <- function(f1, f2, samplename, flab, bnd_switch = TRUE) {
 
   mb <- read_manta_both(f1, f2)
   tot_vars <- list(run1 = nrow(mb$f1), run2 = nrow(mb$f2))
-  col_nms <- colnames(mb$f1)
+  # col_nms <- colnames(mb$f1)
+  col_nms <- c("chrom1", "pos1", "chrom2", "pos2")
   fp <- dplyr::anti_join(mb$f1, mb$f2, by = col_nms)
   fn <- dplyr::anti_join(mb$f2, mb$f1, by = col_nms)
 
